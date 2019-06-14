@@ -1,0 +1,18 @@
+
+Csquid:S1481`",Remove this unused "address" local variable.(Í≤⁄ﬁ
+Nsquid:S1481Æ"1Remove this unused "withdrawHash" local variable.(íéÌÍ˙ˇˇˇˇ
+ksquid:S00100^"NRename this method name to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(⁄“•º¯ˇˇˇˇ
+[squid:S1155Â">Use isEmpty() to check whether the collection is empty or not.(ﬂÃŸ“˚ˇˇˇˇ
+Nsquid:S1481Ô"1Remove this unused "withdrawHash" local variable.(íéÌÍ˙ˇˇˇˇ
+]squid:S1854Ô"@Remove this useless assignment to local variable "withdrawHash".(íéÌÍ˙ˇˇˇˇ
+p
+squid:S135¢"YReduce the total number of break and continue statements in this loop to use at most one.(Œ¬≤∏
+=squid:S1170?"!Make this final field static too.(ü˛µêˇˇˇˇˇ
+=squid:S1170A"!Make this final field static too.(óáå≈˘ˇˇˇˇ
+]squid:S1854Æ"@Remove this useless assignment to local variable "withdrawHash".(íéÌÍ˙ˇˇˇˇ
+msquid:S1192i"VDefine a constant instead of duplicating this literal "ÂÖ±ËØÜÂäüËÉΩÈîÅÂÆö‰∏≠" 3 times.(î”ú˙
+Psquid:S10682"4Remove this unused "maxCreateDeposit" private field.(ÑÕù«˝ˇˇˇˇ
+[squid:S1155™">Use isEmpty() to check whether the collection is empty or not.(ﬂÃŸ“˚ˇˇˇˇ
+3squid:S3626™"Remove this redundant jump.(…ä©É
+Rsquid:S1854`";Remove this useless assignment to local variable "address".(Í≤⁄ﬁ
+Vsquid:S1155„">Use isEmpty() to check whether the collection is empty or not.(Û‰Åõ
