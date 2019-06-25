@@ -1,4 +1,0 @@
-
-ysquid:S14883"]Immediately return this expression instead of assigning it to the temporary variable "total".(éÆå’ÿÿÿÿÿ
-Fsquid:S14819"*Remove this unused "total" local variable.(éÆå’ÿÿÿÿÿ
-Usquid:S18549"9Remove this useless assignment to local variable "total".(éÆå’ÿÿÿÿÿ

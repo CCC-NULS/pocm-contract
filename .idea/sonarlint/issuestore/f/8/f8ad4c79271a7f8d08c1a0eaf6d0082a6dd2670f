@@ -1,31 +1,0 @@
-
-msquid:UselessImportCheck("BRemove this unused import 'io.nuls.pocm.contract.token.PocmToken'.(ëä¶–8Ù—üƒ²-
-Xsquid:S2864—"4Iterate over the "entrySet" instead of the "keySet".(³¯©üÿÿÿÿ8óµŠ®²-
-osquid:CommentedOutCodeLineÂ"<This block of commented-out lines of code should be removed.(ÂĞÍÚüÿÿÿÿ8óµŠ®²-
-hsquid:S1854¸"DRemove this useless assignment to local variable "thisMiningAmount".(ÿ§–ûÿÿÿÿ8óµŠ®²-
-Zsquid:S1854õ";Remove this useless assignment to local variable "precent".(¢îô¥8óµŠ®²-
-Zsquid:S2696Ñ"6Make the enclosing method "static" or remove this set.(ã¨ğßıÿÿÿÿ8ß¤™²-
-jsquid:HiddenFieldCheckÛ"@Rename "currentPrice" which hides the field declared at line 94.(Õíİ›8ß¤™²-
-Zsquid:S2696ş"6Make the enclosing method "static" or remove this set.(ã¨ğßıÿÿÿÿ8ß¤™²-
-;squid:S1643“"Use a StringBuilder instead.(Ò­Ë8óµŠ®²-
-esquid:S1126ì"AReplace this if-then-else statement by a single return statement.(¦‹±¸üÿÿÿÿ8ß¤™²-
-Qsquid:S1135Ğ"2Complete the task associated to this TODO comment.(ı¼Äë8ß¤™²-
-ssquid:HiddenFieldCheckä"DRename "totalDepositList" which hides the field declared at line 86.(£ğÛ’şÿÿÿÿ8óµŠ®²-
-Ssquid:S2864¥"4Iterate over the "entrySet" instead of the "keySet".(×¼Æ8ß¤™²-
-esquid:S00107z"AConstructor has 9 parameters, which is greater than 7 authorized.( èƒ£ıÿÿÿÿ8ß¤™²-
-psquid:S00117„"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(Áí™J8óµŠ®²-
-isquid:S001167"RRename this field "HLAVING" to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(¼ŒÕH
-Xsquid:S2864´"4Iterate over the "entrySet" instead of the "keySet".(¼ËÓıÿÿÿÿ8ß¤™²-
-jsquid:CommentedOutCodeLine¾"<This block of commented-out lines of code should be removed.(«ìÿ8óµŠ®²-
-Msquid:S1481")Remove this unused "temp" local variable.(â·Î¶ùÿÿÿÿ8óµŠ®²-
-vsquid:S00117û"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(óí—ğøÿÿÿÿ8óµŠ®²-
-hsquid:S3008`"QRename this field "NUMBER" to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(±Á£•
-asquid:S1854”"BRemove this useless assignment to local variable "rewardingCycle".(§ Ûİ8óµŠ®²-
-Ssquid:S2864Ø"4Iterate over the "entrySet" instead of the "keySet".(×¼Æ8óµŠ®²-
-jsquid:CommentedOutCodeLineÅ"<This block of commented-out lines of code should be removed.(Ãõ±˜8óµŠ®²-
-tsquid:S1192×"PDefine a constant instead of duplicating this literal "æŠ¼é‡‘é”å®šä¸­" 3 times.(¨ÑĞ€úÿÿÿÿ8ß¤™²-
-]squid:S1155ı">Use isEmpty() to check whether the collection is empty or not.(Âİ8óµŠ®²-
-Xsquid:S2864”"4Iterate over the "entrySet" instead of the "keySet".(³¯©üÿÿÿÿ8ß¤™²-
-Ssquid:S2864ÿ"4Iterate over the "entrySet" instead of the "keySet".(×¼Æ8óµŠ®²-
-Ysquid:S1481¸"5Remove this unused "thisMiningAmount" local variable.(ÿ§–ûÿÿÿÿ8óµŠ®²-
-vsquid:S00117ú"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(†®ô²ıÿÿÿÿ8óµŠ®²-
