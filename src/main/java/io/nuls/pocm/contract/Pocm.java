@@ -35,6 +35,7 @@ import io.nuls.pocm.contract.event.ErrorEvent;
 import io.nuls.pocm.contract.event.MiningInfoEvent;
 import io.nuls.pocm.contract.manager.ConsensusManager;
 import io.nuls.pocm.contract.manager.TotalDepositManager;
+import io.nuls.pocm.contract.manager.deposit.DepositOthersManager;
 import io.nuls.pocm.contract.model.*;
 import io.nuls.pocm.contract.ownership.Ownable;
 import io.nuls.pocm.contract.token.PocmToken;
@@ -181,6 +182,23 @@ public class Pocm extends Ownable implements Contract {
     public void createAgentByOwner() {
         onlyOwner();
         consensusManager.createAgentByOwner(Msg.value());
+    }
+
+    /**
+     * 开启委托到其他节点的共识功能
+     */
+    public void enableDepositOthers() {
+        onlyOwner();
+        consensusManager.enableDepositOthers();
+    }
+
+    /**
+     * 添加其他节点的共识信息
+     * @param agentHash 其他共识节点的hash
+     */
+    public void addOtherAgent(String agentHash) {
+        onlyOwner();
+        consensusManager.addOtherAgent(agentHash);
     }
 
     /**

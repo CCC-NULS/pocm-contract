@@ -35,6 +35,7 @@ import java.util.Set;
 
 import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.manager.ConsensusManager.*;
+import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
 
 /**
  * @author: PierreLuo
@@ -53,6 +54,10 @@ public class DepositOthersManager {
 
     public DepositOthersManager() {
         otherAgents = new HashSet<String>();
+    }
+
+    public int otherAgentsSize() {
+        return otherAgents.size();
     }
 
     public BigInteger otherDepositLockedAmount() {
@@ -161,5 +166,32 @@ public class DepositOthersManager {
         }
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("{");
+        sb.append("\"otherAgents\":");
+        sb.append('[');
+        for(String hash : otherAgents) {
+            sb.append('\"').append(otherAgents).append('\"').append(',');
+        }
+        if (otherAgents.size() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        sb.append(']');
 
+        sb.append(",\"depositList\":");
+        sb.append('[');
+        for (ConsensusDepositInfo info : depositList) {
+            sb.append(info.toString()).append(',');
+        }
+        if (depositList.size() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        sb.append(']');
+
+        sb.append(",\"depositLockedAmount\":")
+                .append('\"').append(toNuls(depositLockedAmount).toPlainString()).append('\"');
+        sb.append('}');
+        return sb.toString();
+    }
 }

@@ -72,7 +72,7 @@ public class ConsensusManager {
     // 委托自己节点锁定金额
     private BigInteger depositLockedAmount = BigInteger.ZERO;
     // 上一次委托锁定金额
-    private BigInteger tempDepositLockedAmount = BigInteger.ZERO;
+    //private BigInteger tempDepositLockedAmount = BigInteger.ZERO;
     // 共识奖励金额信息
     private ConsensusAwardInfo awardInfo;
     // lock 3.5 days
@@ -181,7 +181,6 @@ public class ConsensusManager {
      * @param currentInitial 是否在当前重置了可用余额，如果重置了，则不需要再计算value
      */
     public void createOrDepositIfPermittedWrapper(BigInteger value, boolean currentReset) {
-        tempDepositLockedAmount = depositLockedAmount;
         this.createOrDepositIfPermitted(value, currentReset);
     }
 
@@ -193,17 +192,25 @@ public class ConsensusManager {
         }
 
         String[] contractAgentInfo = null;
+        // 合约节点已委托金额
+        BigInteger totalDepositOfContractAgent = null;
+        // 0-待共识 1-共识中
+        String statusOfContractAgent = null;
         do {
             // 检查是否可委托其他节点
             if(enableDepositOthers) {
+                if(depositOthersManager.otherAgentsSize() == 0) {
+                    // 没有其他节点的共识信息，跳过此流程，执行委托合约节点
+                    break;
+                }
                 // 已经创建自己的共识节点，检查共识是否激活
                 if (hasCreate) {
                     String[] args = new String[]{lastAgentHash};
                     contractAgentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", args);
                     // 合约节点已委托金额
-                    BigInteger totalDepositOfContractAgent = new BigInteger(contractAgentInfo[4]);
+                    totalDepositOfContractAgent = new BigInteger(contractAgentInfo[4]);
                     // 0-待共识 1-共识中
-                    String statusOfContractAgent = contractAgentInfo[9];
+                    statusOfContractAgent = contractAgentInfo[9];
                     /**
                      * 如果没有激活共识，检查可用金额加委托合约节点的和委托其他节点的金额是否达到20W，达到，则退出委托其他节点的金额，使总金额达到最多50W即可，委托合约节点（转移这部分金额委托到自己节点，来激活自己的节点）
                      *      没有达到20W，合约则退出委托合约节点的金额，委托到其他节点上
@@ -278,6 +285,8 @@ public class ConsensusManager {
             if(contractAgentInfo == null) {
                 String[] args = new String[]{lastAgentHash};
                 contractAgentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", args);
+                // 合约节点已委托金额
+                totalDepositOfContractAgent = new BigInteger(contractAgentInfo[4]);
             }
             String delHeight = contractAgentInfo[8];
             // 已删除节点，不再自动创建
@@ -300,7 +309,7 @@ public class ConsensusManager {
                 deposit = amount;
             }
             // 委托
-            this.maintainCanDeposit(deposit);
+            this.maintainCanDeposit(deposit, totalDepositOfContractAgent);
         } else {
             // 检查可用金额是否足以创建节点
             BigInteger amount = availableAmount;
@@ -317,30 +326,48 @@ public class ConsensusManager {
     }
 
     /**
-     * 当可用金额达到最小可委托金额时，合约拥有者可手动委托节点
+     * 当可用金额达到最小可委托金额时，合约拥有者可手动委托合约节点
      */
     public void depositManually() {
         require(this.isUnLockedConsensus(), "共识功能锁定中");
         require(hasCreate, "未创建节点");
-        tempDepositLockedAmount = depositLockedAmount;
+        String[] args = new String[]{lastAgentHash};
+        String[] contractAgentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", args);
+        // 合约节点已委托金额
+        BigInteger totalDepositOfContractAgent = new BigInteger(contractAgentInfo[4]);
         BigInteger amount = availableAmount;
         require(amount.compareTo(MIN_JOIN_DEPOSIT) >= 0, "可用金额不足以委托节点");
         // 委托
-        this.maintainCanDeposit(amount);
+        this.maintainCanDeposit(amount, totalDepositOfContractAgent);
     }
 
     /**
-     * 如果合约余额不足，则退出委托，直到余额足以退还押金
+     * 如果合约余额不足，则退出其他节点的委托和合约节点的委托，直到余额足以退还押金
      *
      * @param value 需要退还的押金
      * @return true - 退出委托后余额足够, false - 退出委托，注销节点，余额被锁定一部分(3天)，可用余额不足以退还押金
      */
     public boolean withdrawIfPermittedWrapper(BigInteger value) {
-        tempDepositLockedAmount = depositLockedAmount;
-        return this.withdrawIfPermitted(value);
+        if (availableAmount.compareTo(value) >= 0) {
+            availableAmount = availableAmount.subtract(value);
+            return true;
+        }
+        String[] args = new String[]{lastAgentHash};
+        String[] contractAgentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", args);
+        // 合约节点已委托金额
+        BigInteger totalDepositOfContractAgent = new BigInteger(contractAgentInfo[4]);
+        // 退出委托其他节点的金额
+        BigInteger actualWithdraw = depositOthersManager.withdraw(value);
+        availableAmount = availableAmount.add(actualWithdraw);
+        if (availableAmount.compareTo(value) >= 0) {
+            availableAmount = availableAmount.subtract(value);
+            return true;
+        }
+        value = value.subtract(actualWithdraw);
+        return this.withdrawIfPermitted(value, totalDepositOfContractAgent);
     }
 
-    private boolean withdrawIfPermitted(BigInteger value) {
+    private boolean withdrawIfPermitted(BigInteger value, BigInteger totalDepositOfContractAgent) {
         if (availableAmount.compareTo(value) >= 0) {
             availableAmount = availableAmount.subtract(value);
             return true;
@@ -361,14 +388,14 @@ public class ConsensusManager {
         availableAmount = availableAmount.add(deposit);
         depositLockedAmount = depositLockedAmount.subtract(deposit);
         if (availableAmount.compareTo(value) < 0) {
-            return withdrawIfPermitted(value);
+            return withdrawIfPermitted(value, totalDepositOfContractAgent);
         } else {
             availableAmount = availableAmount.subtract(value);
             // 若可用金额足够，则继续委托进去
             BigInteger amount = availableAmount;
             if (amount.compareTo(MIN_JOIN_DEPOSIT) >= 0) {
                 // 委托
-                this.maintainCanDeposit(amount);
+                this.maintainCanDeposit(amount, totalDepositOfContractAgent);
             }
             return true;
         }
@@ -558,10 +585,10 @@ public class ConsensusManager {
      * 如果本次委托金额和当前已委托金额累加值大于最大限额，就委托不超过限额的那部分(不能连续交易的补救方式)
      * @param amount 本次委托金额
      */
-    private void maintainCanDeposit(BigInteger amount) {
+    private void maintainCanDeposit(BigInteger amount, BigInteger totalDepositOfContractAgent) {
         BigInteger canDepoist = amount;
-        if(canDepoist.add(tempDepositLockedAmount).compareTo(MAX_TOTAL_DEPOSIT) > 0) {
-            canDepoist = MAX_TOTAL_DEPOSIT.subtract(tempDepositLockedAmount);
+        if(canDepoist.add(totalDepositOfContractAgent).compareTo(MAX_TOTAL_DEPOSIT) > 0) {
+            canDepoist = MAX_TOTAL_DEPOSIT.subtract(totalDepositOfContractAgent);
         }
         if(canDepoist.compareTo(MIN_JOIN_DEPOSIT) < 0) {
             return;
@@ -611,10 +638,12 @@ public class ConsensusManager {
                 .append('\"').append(toNuls(availableAmount).toPlainString()).append('\"');
         sb.append(",\"depositLockedAmount\":")
                 .append('\"').append(toNuls(depositLockedAmount).toPlainString()).append('\"');
-        sb.append(",\"tempDepositLockedAmount\":")
-                .append('\"').append(toNuls(tempDepositLockedAmount).toPlainString()).append('\"');
+        //sb.append(",\"tempDepositLockedAmount\":")
+        //        .append('\"').append(toNuls(tempDepositLockedAmount).toPlainString()).append('\"');
         sb.append(",\"awardInfo\":")
                 .append(awardInfo.toString());
+        sb.append(",\"depositOthersManager\":")
+                .append(depositOthersManager.toString());
         sb.append(",\"unlockConsensusTime\":")
                 .append(unlockConsensusTime);
         sb.append(",\"unlockAgentDepositTime\":")
