@@ -44,8 +44,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
 
-import static io.nuls.contract.sdk.Utils.emit;
-import static io.nuls.contract.sdk.Utils.require;
+import static io.nuls.contract.sdk.Utils.*;
 import static io.nuls.pocm.contract.util.PocmUtil.*;
 
 /**
@@ -160,6 +159,11 @@ public class Pocm extends Ownable implements Contract {
             consensusManager = new ConsensusManager(packing);
         }
         totalDepositManager = new TotalDepositManager(consensusManager, openConsensus);
+    }
+
+    @Override
+    public void _payable() {
+        revert("Do not accept direct transfers.");
     }
 
     /**
