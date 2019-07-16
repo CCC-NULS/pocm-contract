@@ -100,4 +100,8 @@ public class TotalDepositManager {
             }
         }
     }
+
+    public void setOpenConsensus(boolean openConsensus) {
+        this.openConsensus = openConsensus;
+    }
 }

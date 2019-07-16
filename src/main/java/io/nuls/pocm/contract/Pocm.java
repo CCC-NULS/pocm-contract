@@ -117,6 +117,8 @@ public class Pocm extends Ownable implements Contract {
     private  boolean isGetTotal=false;
     //是否接受抵押
     private boolean isAcceptDeposit=false;
+    //是否开启合约共识功能
+    private boolean openConsensus=false;
 
     public Pocm(@Required String tokenAddress, @Required BigDecimal price, @Required int awardingCycle,
                 @Required BigDecimal minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus, String packingAddress,
@@ -155,6 +157,7 @@ public class Pocm extends Ownable implements Contract {
         symbol= tokenContractAddress.callWithReturnValue("symbol","",null,BigInteger.ZERO);
 
         if(openConsensus) {
+            this.openConsensus = openConsensus;
             Address packing = new Address(packingAddress);
             consensusManager = new ConsensusManager(packing);
         }
@@ -185,7 +188,20 @@ public class Pocm extends Ownable implements Contract {
     @Payable
     public void createAgentByOwner() {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         consensusManager.createAgentByOwner(Msg.value());
+    }
+
+    /**
+     * 开启共识功能
+     */
+    public void openConsensus(@Required Address packingAddress) {
+        onlyOwner();
+        require(!openConsensus, "已开启共识功能");
+        require(packingAddress != null, "出块地址必填");
+        this.openConsensus = true;
+        consensusManager = new ConsensusManager(packingAddress);
+        totalDepositManager.setOpenConsensus(true);
     }
 
     /**
@@ -193,6 +209,7 @@ public class Pocm extends Ownable implements Contract {
      */
     public void enableDepositOthers() {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         consensusManager.enableDepositOthers();
     }
 
@@ -202,6 +219,7 @@ public class Pocm extends Ownable implements Contract {
      */
     public void addOtherAgent(String agentHash) {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         consensusManager.addOtherAgent(agentHash);
     }
 
@@ -372,6 +390,7 @@ public class Pocm extends Ownable implements Contract {
      */
     public void refundAllUnLockDepositByOwner() {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         require(consensusManager.isUnLockedAgentDeposit(), "押金锁定中");
         consensusManager.refundAllUnLockDeposit();
     }
@@ -380,6 +399,7 @@ public class Pocm extends Ownable implements Contract {
      * 共识保证金解锁后，退还申请过退出的用户的押金 - 投资用户操作
      */
     public void takeBackUnLockDeposit() {
+        require(openConsensus, "未开启共识功能");
         require(consensusManager.isUnLockedAgentDeposit(), "押金锁定中");
         consensusManager.takeBackUnLockDeposit();
     }
@@ -389,6 +409,7 @@ public class Pocm extends Ownable implements Contract {
      */
     public void transferConsensusRewardByOwner() {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         consensusManager.transferConsensusReward(contractCreator);
     }
 
@@ -397,6 +418,7 @@ public class Pocm extends Ownable implements Contract {
      */
     public void takeBackConsensusCreateAgentDepositByOwner() {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         consensusManager.takeBackCreateAgentDeposit(contractCreator);
     }
 
@@ -405,6 +427,7 @@ public class Pocm extends Ownable implements Contract {
      */
     public void depositConsensusManuallyByOwner() {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         consensusManager.depositManually();
     }
 
@@ -413,6 +436,7 @@ public class Pocm extends Ownable implements Contract {
      */
     public void stopAgentManuallyByOwner() {
         onlyOwner();
+        require(openConsensus, "未开启共识功能");
         consensusManager.stopAgentManually();
     }
 
@@ -1015,6 +1039,7 @@ public class Pocm extends Ownable implements Contract {
      */
     @View
     public String ownerAvailableConsensusAward() {
+        require(openConsensus, "未开启共识功能");
         return toNuls(consensusManager.getAvailableConsensusReward()).toPlainString();
     }
 
@@ -1023,6 +1048,7 @@ public class Pocm extends Ownable implements Contract {
      */
     @View
     public String freeAmountForConsensusDeposit() {
+        require(openConsensus, "未开启共识功能");
         return toNuls(consensusManager.getAvailableAmount()).toPlainString();
     }
 
@@ -1038,8 +1064,10 @@ public class Pocm extends Ownable implements Contract {
                 .append('\"').append(totalDepositDetail).append('\"');
         sb.append(",\"totalDepositList\":")
                 .append('\"').append(totalDepositList).append('\"');
-        sb.append(",\"consensusManager\":")
-                .append(consensusManager==null?" ":consensusManager.toString());
+        if(openConsensus) {
+            sb.append(",\"consensusManager\":")
+                    .append(consensusManager==null?" ":consensusManager.toString());
+        }
         sb.append('}');
         return sb.toString();
     }
