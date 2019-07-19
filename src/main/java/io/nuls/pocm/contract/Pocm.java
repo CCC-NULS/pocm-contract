@@ -202,6 +202,7 @@ public class Pocm extends Ownable implements Contract {
         this.openConsensus = true;
         consensusManager = new ConsensusManager(packingAddress);
         totalDepositManager.setOpenConsensus(true);
+        totalDepositManager.setConsensusManager(consensusManager);
     }
 
     /**
@@ -601,12 +602,12 @@ public class Pocm extends Ownable implements Contract {
         return -1;
     }
 
-    public void transferForTest(String to,String value){
-        String[][] args = new String[2][];
-        args[0]=new String[]{to};
-        args[1]=new String[]{value};
-        tokenContractAddress.call("transfer","",args,BigInteger.ZERO);
-    }
+    //public void transferForTest(String to,String value){
+    //    String[][] args = new String[2][];
+    //    args[0]=new String[]{to};
+    //    args[1]=new String[]{value};
+    //    tokenContractAddress.call("transfer","",args,BigInteger.ZERO);
+    //}
 
     /**
      * 领取奖励

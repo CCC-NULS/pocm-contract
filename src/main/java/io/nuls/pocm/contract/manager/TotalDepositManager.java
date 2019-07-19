@@ -101,6 +101,10 @@ public class TotalDepositManager {
         }
     }
 
+    public void setConsensusManager(ConsensusManager consensusManager) {
+        this.consensusManager = consensusManager;
+    }
+
     public void setOpenConsensus(boolean openConsensus) {
         this.openConsensus = openConsensus;
     }
