@@ -196,11 +196,15 @@ public class ConsensusManager {
         BigInteger totalDepositOfContractAgent = null;
         // 0-待共识 1-共识中
         String statusOfContractAgent = null;
+        //emit(new ErrorEvent("log", "in 201L"));
         do {
+            //emit(new ErrorEvent("log", "in 203L"));
             // 检查是否可委托其他节点
             if(enableDepositOthers) {
+                //emit(new ErrorEvent("log", "in 206L"));
                 if(depositOthersManager.otherAgentsSize() == 0) {
                     // 没有其他节点的共识信息，跳过此流程，执行委托合约节点
+                    //emit(new ErrorEvent("log", "in 209L"));
                     break;
                 }
                 // 已经创建自己的共识节点，检查共识是否激活
@@ -264,13 +268,15 @@ public class ConsensusManager {
                      * 没有创建自己的共识节点，检查可用金额加委托其他节点的金额是否达到22W，达到则创建节点（2W保证金，20W委托），没达到则继续委托其他节点
                      */
                     BigInteger amount = availableAmount.add(otherDepositLockedAmount());
-                    boolean isReached22 = MIN_CREATE_DEPOSIT.add(MIN_ACTIVE_AGENT).compareTo(amount) >= 0;
+                    boolean isReached22 = amount.compareTo(MIN_CREATE_DEPOSIT.add(MIN_ACTIVE_AGENT)) >= 0;
+                    //emit(new ErrorEvent("isReached22", isReached22+""));
                     if(isReached22) {
                         BigInteger actualWithdraw = depositOthersManager.withdraw(MAX_TOTAL_DEPOSIT);
                         availableAmount = availableAmount.add(actualWithdraw);
                         // 继续执行，委托合约节点
                         break;
                     } else {
+                        //emit(new ErrorEvent("log", "in 281L"));
                         BigInteger actualDeposit = depositOthersManager.deposit(availableAmount);
                         availableAmount = availableAmount.subtract(actualDeposit);
                         // 结束执行，已委托到其他节点上
@@ -642,8 +648,10 @@ public class ConsensusManager {
         //        .append('\"').append(toNuls(tempDepositLockedAmount).toPlainString()).append('\"');
         sb.append(",\"awardInfo\":")
                 .append(awardInfo.toString());
-        sb.append(",\"depositOthersManager\":")
-                .append(depositOthersManager.toString());
+        if(enableDepositOthers) {
+            sb.append(",\"depositOthersManager\":")
+                    .append(depositOthersManager.toString());
+        }
         sb.append(",\"unlockConsensusTime\":")
                 .append(unlockConsensusTime);
         sb.append(",\"unlockAgentDepositTime\":")

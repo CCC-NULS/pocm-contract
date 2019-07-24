@@ -23,9 +23,7 @@
  */
 package io.nuls.pocm.contract.manager.deposit;
 
-import io.nuls.contract.sdk.Address;
 import io.nuls.contract.sdk.Utils;
-import io.nuls.pocm.contract.manager.ConsensusManager;
 import io.nuls.pocm.contract.model.ConsensusDepositInfo;
 
 import java.math.BigInteger;
@@ -34,7 +32,8 @@ import java.util.LinkedList;
 import java.util.Set;
 
 import static io.nuls.contract.sdk.Utils.require;
-import static io.nuls.pocm.contract.manager.ConsensusManager.*;
+import static io.nuls.pocm.contract.manager.ConsensusManager.ACTIVE_AGENT;
+import static io.nuls.pocm.contract.manager.ConsensusManager.MAX_TOTAL_DEPOSIT;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
 
 /**
@@ -76,6 +75,7 @@ public class DepositOthersManager {
             agentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
             // 0-待共识 1-共识中
             String status = agentInfo[9];
+            //emit(new ErrorEvent("status", status));
             if(!ACTIVE_AGENT.equals(status)) {
                 continue;
             }
@@ -172,7 +172,7 @@ public class DepositOthersManager {
         sb.append("\"otherAgents\":");
         sb.append('[');
         for(String hash : otherAgents) {
-            sb.append('\"').append(otherAgents).append('\"').append(',');
+            sb.append('\"').append(hash).append('\"').append(',');
         }
         if (otherAgents.size() > 0) {
             sb.deleteCharAt(sb.length() - 1);

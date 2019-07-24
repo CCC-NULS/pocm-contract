@@ -24,9 +24,11 @@
 package io.nuls.pocm.contract.manager;
 
 import io.nuls.contract.sdk.Msg;
+import io.nuls.pocm.contract.event.ErrorEvent;
 
 import java.math.BigInteger;
 
+import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
 
 /**
@@ -66,7 +68,9 @@ public class TotalDepositManager {
 
     public void add(BigInteger value) {
         this.totalDeposit = this.totalDeposit.add(value);
+        emit(new ErrorEvent("共识状态", openConsensus + "," + consensusManager.isUnLockedConsensus()));
         if(openConsensus && consensusManager.isUnLockedConsensus()) {
+            //emit(new ErrorEvent("log", "in 73L"));
             consensusManager.createOrDepositIfPermittedWrapper(value, consensusManager.checkCurrentReset());
         }
     }
