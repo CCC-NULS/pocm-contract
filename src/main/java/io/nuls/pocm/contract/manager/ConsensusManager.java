@@ -24,19 +24,11 @@
 package io.nuls.pocm.contract.manager;
 
 import io.nuls.contract.sdk.Address;
-import io.nuls.contract.sdk.Block;
 import io.nuls.contract.sdk.Msg;
-import io.nuls.contract.sdk.Utils;
 import io.nuls.pocm.contract.manager.deposit.DepositOthersManager;
 import io.nuls.pocm.contract.model.ConsensusAwardInfo;
-import io.nuls.pocm.contract.model.ConsensusDepositInfo;
-import io.nuls.pocm.contract.model.ConsensusTakeBackUnLockDepositInfo;
 
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Set;
 
 import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;

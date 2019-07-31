@@ -121,7 +121,7 @@ public class Pocm extends Ownable implements Contract {
     private boolean openConsensus=false;
 
     public Pocm(@Required String tokenAddress, @Required BigDecimal price, @Required int awardingCycle,
-                @Required BigDecimal minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus, String packingAddress,
+                @Required BigDecimal minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus,
                 String rewardHalvingCycle, String maximumDepositAddressCount) {
         tokenContractAddress = new Address(tokenAddress);
         // 检查 price 小数位不得大于decimals
@@ -156,10 +156,10 @@ public class Pocm extends Ownable implements Contract {
         name= tokenContractAddress.callWithReturnValue("name","",null,BigInteger.ZERO);
         symbol= tokenContractAddress.callWithReturnValue("symbol","",null,BigInteger.ZERO);
 
+        totalDepositManager = new TotalDepositManager();
         if(openConsensus) {
             openConsensus();
         }
-        totalDepositManager = new TotalDepositManager(consensusManager, openConsensus);
     }
 
     @Override
@@ -989,10 +989,10 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
-     * 查询合约当前所有信息(用于测试)
+     * 查询合约当前所有信息
      */
     @View
-    public String wholeConsensusInfoForTest() {
+    public String wholeConsensusInfo() {
         String totalDepositDetail = totalDepositDetail();
         String totalDepositList = getTotalDepositList();
         final StringBuilder sb = new StringBuilder("{");
