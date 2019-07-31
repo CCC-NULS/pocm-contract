@@ -24,11 +24,9 @@
 package io.nuls.pocm.contract.manager;
 
 import io.nuls.contract.sdk.Msg;
-import io.nuls.pocm.contract.event.ErrorEvent;
 
 import java.math.BigInteger;
 
-import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
 
 /**
@@ -55,52 +53,26 @@ public class TotalDepositManager {
     }
 
     public String getTotalDepositDetail() {
-        String result = "running: " + toNuls(totalDeposit).toPlainString() + " NULS";
-        BigInteger total = totalDeposit;
-        if(openConsensus) {
-            BigInteger totalTakeBackLockDeposit = consensusManager.getTotalTakeBackLockDeposit();
-            if(totalTakeBackLockDeposit.compareTo(BigInteger.ZERO) > 0) {
-                result += ", waiting for exit: " + toNuls(totalTakeBackLockDeposit).toPlainString() + " NULS";
-            }
-        }
-        return result;
+        return "running: " + toNuls(totalDeposit).toPlainString() + " NULS";
     }
 
     public void add(BigInteger value) {
         this.totalDeposit = this.totalDeposit.add(value);
-        emit(new ErrorEvent("共识状态", openConsensus + "," + consensusManager.isUnLockedConsensus()));
-        if(openConsensus && consensusManager.isUnLockedConsensus()) {
+        if(openConsensus) {
             //emit(new ErrorEvent("log", "in 73L"));
-            consensusManager.createOrDepositIfPermittedWrapper(value, consensusManager.checkCurrentReset());
+            consensusManager.createOrDepositIfPermitted(value);
         }
     }
 
     public boolean subtract(BigInteger value) {
         this.totalDeposit = this.totalDeposit.subtract(value);
-        /**
-         *  情况：用户抵押金被当作了节点创建的保证金
-         *       项目拥有者手动注销了节点，保证金被锁定3天
-         *       用户退出抵押，合约余额不足，则会导致退出抵押失败
-         *          应该正常退出抵押，抵押金在3天后返还
-         *
-         *  判断余额是否足够
-         *      足够 - 返回true
-         *      不足 - 判断共识是否在锁定中
-         *                锁定中 - 返回false
-         *                未锁定 - 调用withdrawIfPermitted
-         */
         if(Msg.address().balance().compareTo(value) >= 0) {
             return true;
         } else {
             if(openConsensus) {
-                if(!consensusManager.isUnLockedConsensus()) {
-                    return false;
-                } else {
-                    consensusManager.checkCurrentReset();
-                    return consensusManager.withdrawIfPermittedWrapper(value);
-                }
+                return consensusManager.withdrawIfPermittedWrapper(value);
             } else {
-                return true;
+                return false;
             }
         }
     }

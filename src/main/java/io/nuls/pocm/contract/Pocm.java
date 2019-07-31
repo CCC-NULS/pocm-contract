@@ -157,9 +157,7 @@ public class Pocm extends Ownable implements Contract {
         symbol= tokenContractAddress.callWithReturnValue("symbol","",null,BigInteger.ZERO);
 
         if(openConsensus) {
-            this.openConsensus = openConsensus;
-            Address packing = new Address(packingAddress);
-            consensusManager = new ConsensusManager(packing);
+            openConsensus();
         }
         totalDepositManager = new TotalDepositManager(consensusManager, openConsensus);
     }
@@ -183,35 +181,15 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
-     * 项目发布者手动创建共识节点
-     */
-    @Payable
-    public void createAgentByOwner() {
-        onlyOwner();
-        require(openConsensus, "未开启共识功能");
-        consensusManager.createAgentByOwner(Msg.value());
-    }
-
-    /**
      * 开启共识功能
      */
-    public void openConsensus(@Required Address packingAddress) {
+    public void openConsensus() {
         onlyOwner();
         require(!openConsensus, "已开启共识功能");
-        require(packingAddress != null, "出块地址必填");
         this.openConsensus = true;
-        consensusManager = new ConsensusManager(packingAddress);
+        consensusManager = new ConsensusManager();
         totalDepositManager.setOpenConsensus(true);
         totalDepositManager.setConsensusManager(consensusManager);
-    }
-
-    /**
-     * 开启委托到其他节点的共识功能
-     */
-    public void enableDepositOthers() {
-        onlyOwner();
-        require(openConsensus, "未开启共识功能");
-        consensusManager.enableDepositOthers();
     }
 
     /**
@@ -222,6 +200,24 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
         consensusManager.addOtherAgent(agentHash);
+    }
+
+    /**
+     * 合约拥有者委托共识节点
+     */
+    public void depositConsensusManuallyByOwner() {
+        onlyOwner();
+        require(openConsensus, "未开启共识功能");
+        consensusManager.depositManually();
+    }
+
+    /**
+     * 合约拥有者获取共识奖励金额
+     */
+    public void transferConsensusRewardByOwner() {
+        onlyOwner();
+        require(openConsensus, "未开启共识功能");
+        consensusManager.transferConsensusReward(owner);
     }
 
     /**
@@ -370,75 +366,14 @@ public class Pocm extends Ownable implements Contract {
             this.quitDepositToMap(deposit, currentHeight, detailInfo.getDepositHeight());
         }
         boolean isEnoughBalance = totalDepositManager.subtract(deposit);
-
+        require(isEnoughBalance, "余额不足以退还押金，请联系项目方");
         if (depositInfo.getDepositDetailInfos().size() == 0) {
             totalDepositAddressCount -= 1;
             //TODO 退出后是否保留该账户的挖矿记录
             depositUsers.remove(userString);
         }
         emit(new MiningInfoEvent(miningInfo));
-        if(!isEnoughBalance) {
-            // 记录用户退出时，锁定的押金，用于押金解锁时退还给用户
-            consensusManager.recordTakeBackLockDeposit(userString, deposit);
-            emit(new ErrorEvent("押金锁定中", "Token已发放，押金退还失败，押金锁定3天，3天后自动发放，如果没有收到，请使用退还押金功能索回押金"));
-            return;
-        }
         user.transfer(deposit);
-    }
-
-    /**
-     * 共识保证金解锁后，退还所有申请过退出的用户的押金 - 合约拥有者操作
-     */
-    public void refundAllUnLockDepositByOwner() {
-        onlyOwner();
-        require(openConsensus, "未开启共识功能");
-        require(consensusManager.isUnLockedAgentDeposit(), "押金锁定中");
-        consensusManager.refundAllUnLockDeposit();
-    }
-
-    /**
-     * 共识保证金解锁后，退还申请过退出的用户的押金 - 投资用户操作
-     */
-    public void takeBackUnLockDeposit() {
-        require(openConsensus, "未开启共识功能");
-        require(consensusManager.isUnLockedAgentDeposit(), "押金锁定中");
-        consensusManager.takeBackUnLockDeposit();
-    }
-
-    /**
-     * 合约拥有者获取共识奖励金额
-     */
-    public void transferConsensusRewardByOwner() {
-        onlyOwner();
-        require(openConsensus, "未开启共识功能");
-        consensusManager.transferConsensusReward(contractCreator);
-    }
-
-    /**
-     * 合约拥有者赎回共识保证金
-     */
-    public void takeBackConsensusCreateAgentDepositByOwner() {
-        onlyOwner();
-        require(openConsensus, "未开启共识功能");
-        consensusManager.takeBackCreateAgentDeposit(contractCreator);
-    }
-
-    /**
-     * 合约拥有者委托自己的共识节点
-     */
-    public void depositConsensusManuallyByOwner() {
-        onlyOwner();
-        require(openConsensus, "未开启共识功能");
-        consensusManager.depositManually();
-    }
-
-    /**
-     * 合约拥有者注销节点
-     */
-    public void stopAgentManuallyByOwner() {
-        onlyOwner();
-        require(openConsensus, "未开启共识功能");
-        consensusManager.stopAgentManually();
     }
 
     /**
