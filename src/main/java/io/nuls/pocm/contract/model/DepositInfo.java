@@ -1,5 +1,8 @@
 package io.nuls.pocm.contract.model;
 
+import io.nuls.pocm.contract.util.PocmUtil;
+
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,8 +19,14 @@ public class DepositInfo {
     //抵押者地址
     private String  depositorAddress;
 
-    // 抵押金额
+    // 抵押总金额
     private BigInteger depositTotalAmount;
+
+    //抵押可用总金额 =抵押总金额*0.9
+    private BigInteger depositAvailableTotalAmount;
+
+    //抵押锁定总金额 =抵押总金额*0.1
+    private BigInteger depositLockedTotalAmount;
 
     //抵押笔数
     private int depositCount;
@@ -35,6 +44,8 @@ public class DepositInfo {
     public DepositInfo(DepositInfo info){
         this.depositorAddress=info.depositorAddress;
         this.depositTotalAmount=info.depositTotalAmount;
+        this.depositAvailableTotalAmount=info.depositAvailableTotalAmount;
+        this.depositLockedTotalAmount=info.depositLockedTotalAmount;
         this.depositCount=info.depositCount;
         this.depositDetailInfos=info.depositDetailInfos;
     }
@@ -43,8 +54,31 @@ public class DepositInfo {
         return depositTotalAmount;
     }
 
+    /**
+     * 设置抵押总金额的同时，计算锁定总金额和可用总金额
+     * @param depositTotalAmount 抵押总金额
+     */
     public void setDepositTotalAmount(BigInteger depositTotalAmount) {
         this.depositTotalAmount = depositTotalAmount;
+        BigDecimal bigDecimalValue =new BigDecimal(depositTotalAmount);
+        this.depositLockedTotalAmount = PocmUtil.LOCKED_PERCENT.multiply(bigDecimalValue).toBigInteger();
+        this.depositAvailableTotalAmount=this.depositTotalAmount.subtract(this.depositLockedTotalAmount);
+    }
+
+    public BigInteger getDepositAvailableTotalAmount() {
+        return depositAvailableTotalAmount;
+    }
+
+    public void setDepositAvailableTotalAmount(BigInteger depositAvailableTotalAmount) {
+        this.depositAvailableTotalAmount = depositAvailableTotalAmount;
+    }
+
+    public BigInteger getDepositLockedTotalAmount() {
+        return depositLockedTotalAmount;
+    }
+
+    public void setDepositLockedTotalAmount(BigInteger depositLockedTotalAmount) {
+        this.depositLockedTotalAmount = depositLockedTotalAmount;
     }
 
     public Map<Long, DepositDetailInfo> getDepositDetailInfos() {
@@ -100,7 +134,8 @@ public class DepositInfo {
 
     @Override
     public String toString(){
-        return  "{depositTotalAmount:"+depositTotalAmount+",depositorAddress:"+depositorAddress
+        return  "{depositTotalAmount:"+depositTotalAmount+",depositAvailableTotalAmount:"+depositAvailableTotalAmount
+                +",depositLockedTotalAmount:"+depositLockedTotalAmount+",depositorAddress:"+depositorAddress
                 +",depositCount:"+depositCount+",depositDetailInfos:"+convertMapToString()+"}";
     }
 

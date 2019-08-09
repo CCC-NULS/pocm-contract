@@ -16,17 +16,17 @@ public class RewardCycleInfo {
     //当前奖励周期的单价
     private BigDecimal currentPrice;
     //抵押总量
-    private BigInteger depositAmount;
+    private BigInteger availableDepositAmount;
 
     //距离上次统计相差的奖励周期数
     private int differCycleValue;
 
-    public BigInteger getDepositAmount() {
-        return depositAmount;
+    public BigInteger getAvailableDepositAmount() {
+        return availableDepositAmount;
     }
 
-    public void setDepositAmount(BigInteger depositAmount) {
-        this.depositAmount = depositAmount;
+    public void setAvailableDepositAmount(BigInteger availableDepositAmount) {
+        this.availableDepositAmount = availableDepositAmount;
     }
 
     public int getRewardingCylce() {
@@ -55,7 +55,7 @@ public class RewardCycleInfo {
 
     @Override
     public String toString(){
-        return "{rewardingCylce:"+rewardingCylce+",currentPrice:"+currentPrice.toString()+",depositAmount:"+depositAmount
+        return "{rewardingCylce:"+rewardingCylce+",currentPrice:"+currentPrice.toString()+",availableDepositAmount:"+availableDepositAmount
                 +",differCycleValue:"+differCycleValue+"}";
     }
 }

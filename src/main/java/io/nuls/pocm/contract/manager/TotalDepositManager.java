@@ -39,7 +39,7 @@ public class TotalDepositManager {
 
     private ConsensusManager consensusManager;
 
-    private boolean openConsensus;
+    private boolean openConsensus=false;
 
     public TotalDepositManager() {
         this.totalDeposit = BigInteger.ZERO;
