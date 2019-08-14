@@ -53,7 +53,7 @@ public class Pocm extends Ownable implements Contract {
     private final BigDecimal HLAVING = new BigDecimal("2");
     // 合约创建高度
     private final long createHeight;
-    // 初始价格，每个奖励周期所有的NULS抵押数平分XX个token
+    // 初始价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token
     private BigDecimal initialPrice;
 
     // 奖励发放周期（参数类型为数字，每过XXXX块发放一次）
@@ -88,7 +88,7 @@ public class Pocm extends Ownable implements Contract {
     //下一次奖励减半的高度
     private long nextRewardHalvingHeight = 0L;
 
-    // 当前价格，当前奖励周期所有的NULS抵押数平分XX个token
+    // 当前价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token
     private BigDecimal currentPrice;
 
     private static long NUMBER = 1L;
