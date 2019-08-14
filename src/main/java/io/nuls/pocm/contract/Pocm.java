@@ -30,9 +30,7 @@ import io.nuls.contract.sdk.Msg;
 import io.nuls.contract.sdk.annotation.Payable;
 import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
-import io.nuls.pocm.contract.event.DepositInfoEvent;
-import io.nuls.pocm.contract.event.ErrorEvent;
-import io.nuls.pocm.contract.event.MiningInfoEvent;
+import io.nuls.pocm.contract.event.*;
 import io.nuls.pocm.contract.manager.ConsensusManager;
 import io.nuls.pocm.contract.manager.TotalDepositManager;
 import io.nuls.pocm.contract.manager.deposit.DepositOthersManager;
@@ -160,6 +158,7 @@ public class Pocm extends Ownable implements Contract {
         if(openConsensus) {
             openConsensus();
         }
+        emit(new CreateContractEvent(tokenAddress,price,awardingCycle, minimumDepositNULS,minimumLocked, openConsensus,rewardHalvingCycle, maximumDepositAddressCount));
     }
 
     @Override
@@ -226,7 +225,7 @@ public class Pocm extends Ownable implements Contract {
      * @return
      */
     @Payable
-    public void depositForOwn() {
+    public String depositForOwn() {
         require(isAllocationToken(),"此POCM合约未预分配Token,暂不接受抵押");
         require(isAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
         String userStr = Msg.sender().toString();
@@ -261,7 +260,8 @@ public class Pocm extends Ownable implements Contract {
         //初始化挖矿信息
         initMingInfo(currentHeight, userStr, userStr, depositNumber);
         totalDepositManager.add(detailInfo.getAvailableAmount());
-        emit(new DepositInfoEvent(info));
+       // emit(new DepositInfoEvent(info));
+        return detailInfo.toString();
     }
 
     /**
@@ -271,7 +271,7 @@ public class Pocm extends Ownable implements Contract {
      * @return
      */
     @Payable
-    public void depositForOther(@Required Address miningAddress) {
+    public String depositForOther(@Required Address miningAddress) {
         require(isAllocationToken(),"此POCM合约未预分配Token,暂不接受抵押");
         require(isAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
         String userStr = Msg.sender().toString();
@@ -305,7 +305,8 @@ public class Pocm extends Ownable implements Contract {
         //初始化挖矿信息
         initMingInfo(currentHeight, miningAddress.toString(), userStr, depositNumber);
         totalDepositManager.add(detailInfo.getAvailableAmount());
-        emit(new DepositInfoEvent(info));
+      //  emit(new DepositInfoEvent(info));
+        return detailInfo.toString();
     }
 
     /**
@@ -376,19 +377,31 @@ public class Pocm extends Ownable implements Contract {
             depositUsers.remove(userString);
         }
         emit(new MiningInfoEvent(miningInfo));
+        emit(new QuitDepositEvent(depositInfo.getDepositorAddress()));
         user.transfer(depositTotalAmount);
     }
 
     /**
      * 领取奖励,领取为自己抵押挖矿的Token
      */
-    public void receiveAwards() {
+    public String receiveAwards() {
         Address user = Msg.sender();
         MiningInfo miningInfo = mingUsers.get(user.toString());
         require(miningInfo != null, "没有为自己抵押挖矿的挖矿信息");
         DepositInfo depositInfo = getDepositInfo(user.toString());
-        this.receive(depositInfo);
-        emit(new MiningInfoEvent(miningInfo));
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo);
+        //emit(new MiningInfoEvent(miningInfo));
+        String result="{";
+        if(mingInfosList!=null && mingInfosList.size()>0){
+            for(int i=0;i<mingInfosList.size();i++){
+                result +=mingInfosList.get(i).toString();
+            }
+            result +="}";
+        }else{
+            //No mining was done this time
+            result="";
+        }
+        return result;
     }
 
     /**
@@ -396,21 +409,38 @@ public class Pocm extends Ownable implements Contract {
      *
      * @return
      */
-    public void receiveAwardsForMiningAddress() {
+    public String receiveAwardsForMiningAddress() {
         List<String> alreadyReceive = new ArrayList<String>();
         Address user = Msg.sender();
         MiningInfo info = mingUsers.get(user.toString());
         require(info != null, "没有替" + user.toString() + "用户抵押挖矿的挖矿信息");
         Map<Long, MiningDetailInfo> detailInfos = info.getMiningDetailInfos();
+        List<CurrentMingInfo> mergemingInfosList =new ArrayList<CurrentMingInfo>();
         for (Long key : detailInfos.keySet()) {
             MiningDetailInfo detailInfo = detailInfos.get(key);
             if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
                 DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
-                this.receive(depositInfo);
+                List<CurrentMingInfo> mingInfosList=this.receive(depositInfo);
                 alreadyReceive.add(detailInfo.getDepositorAddress());
+                if(mingInfosList!=null && mingInfosList.size()>0){
+                    mergemingInfosList.addAll(mingInfosList);
+                }
             }
         }
-        emit(new MiningInfoEvent(info));
+       // emit(new MiningInfoEvent(info));
+
+        String result="{";
+        if(mergemingInfosList!=null && mergemingInfosList.size()>0){
+            for(int i=0;i<mergemingInfosList.size();i++){
+                result +=mergemingInfosList.get(i).toString();
+            }
+            result +="}";
+        }else{
+            //No mining was done this time
+            result="";
+        }
+
+        return result;
     }
 
     /**
@@ -553,14 +583,14 @@ public class Pocm extends Ownable implements Contract {
      * @param depositInfo
      * @return 返回请求地址的挖矿信息
      */
-    private void receive(DepositInfo depositInfo) {
+    private List<CurrentMingInfo> receive(DepositInfo depositInfo) {
         Map<String, BigInteger> mingResult = new HashMap<String, BigInteger>();
         //预分配的Token已经奖励完，不再进行奖励计算
         if(allocationAmount.compareTo(totalAllocation)==0){
-            return;
+            return null;
         }
         // 奖励计算, 计算每次挖矿的高度是否已达到奖励减半周期的范围，若达到，则当次奖励减半，以此类推
-        BigInteger thisMiningAmount = this.calcMining(depositInfo, mingResult);
+        List<CurrentMingInfo> mingInfosList = this.calcMining(depositInfo, mingResult);
 
         Set<String> set = new HashSet<String>(mingResult.keySet());
         for (String address : set) {
@@ -578,7 +608,7 @@ public class Pocm extends Ownable implements Contract {
          //   emit(new TransferEvent(null, user, mingValue));
         }
 
-      //  this.setTotalSupply(this.getTotalSupply().add(thisMining));
+      return mingInfosList;
     }
 
     /**
@@ -588,7 +618,8 @@ public class Pocm extends Ownable implements Contract {
      * @param mingResult
      * @return
      */
-    private BigInteger calcMining(DepositInfo depositInfo, Map<String, BigInteger> mingResult) {
+    private List<CurrentMingInfo> calcMining(DepositInfo depositInfo, Map<String, BigInteger> mingResult) {
+        List<CurrentMingInfo> mingInfosList=new ArrayList<CurrentMingInfo>();
         BigInteger mining = BigInteger.ZERO;
         long currentHeight = Block.number();
         int currentRewardCycle = this.calcRewardCycle(currentHeight);
@@ -652,8 +683,16 @@ public class Pocm extends Ownable implements Contract {
             }
             mingResult.put(mingDetailInfo.getReceiverMiningAddress(), mingValueNew);
             miningNew.add(mingValueNew);
+
+            //封装当次的挖矿信息
+            CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+            currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+            currentMingInfo.setMiningAmount(mingValueNew);
+            currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
+            currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+            mingInfosList.add(currentMingInfo);
         }
-        return miningNew;
+        return mingInfosList;
     }
 
     /**
