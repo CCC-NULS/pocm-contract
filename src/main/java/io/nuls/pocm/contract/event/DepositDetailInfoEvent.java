@@ -1,6 +1,7 @@
 package io.nuls.pocm.contract.event;
 
 import io.nuls.contract.sdk.Event;
+import io.nuls.pocm.contract.model.DepositDetailInfo;
 import io.nuls.pocm.contract.model.DepositInfo;
 
 /**
@@ -8,9 +9,9 @@ import io.nuls.pocm.contract.model.DepositInfo;
  * @author: Long
  * @date: 2019-03-15
  */
-public class DepositInfoEvent extends DepositInfo implements Event {
+public class DepositDetailInfoEvent extends DepositDetailInfo implements Event {
 
-    public DepositInfoEvent(DepositInfo info){
+    public DepositDetailInfoEvent(DepositDetailInfo info){
         super(info);
     }
 

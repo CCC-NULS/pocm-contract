@@ -28,6 +28,18 @@ public class DepositDetailInfo {
     //此抵押金额采矿获得的Token的分配地址（为空则默认为自身地址）
     private String miningAddress;
 
+    public DepositDetailInfo(){
+    }
+
+    public DepositDetailInfo(DepositDetailInfo info){
+        this.depositNumber=info.depositNumber;
+        this.depositAmount=info.depositAmount;
+        this.availableAmount=info.availableAmount;
+        this.lockedAmount=info.lockedAmount;
+        this.depositHeight=info.depositHeight;
+        this.miningAddress=info.miningAddress;
+    }
+
     public BigInteger getDepositAmount() {
         return depositAmount;
     }

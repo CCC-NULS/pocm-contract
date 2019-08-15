@@ -41,15 +41,6 @@ public class DepositInfo {
         this.depositCount=0;
     }
 
-    public DepositInfo(DepositInfo info){
-        this.depositorAddress=info.depositorAddress;
-        this.depositTotalAmount=info.depositTotalAmount;
-        this.depositAvailableTotalAmount=info.depositAvailableTotalAmount;
-        this.depositLockedTotalAmount=info.depositLockedTotalAmount;
-        this.depositCount=info.depositCount;
-        this.depositDetailInfos=info.depositDetailInfos;
-    }
-
     public BigInteger getDepositTotalAmount() {
         return depositTotalAmount;
     }
