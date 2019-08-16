@@ -46,8 +46,29 @@ public class ConsensusAwardInfo {
         availableAward = availableAward.add(value);
     }
 
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
     public BigInteger getAvailableAward() {
         return availableAward;
+    }
+
+    public void setAvailableAward(BigInteger availableAward) {
+        this.availableAward = availableAward;
+    }
+
+    public BigInteger getTransferedAward() {
+        return transferedAward;
+    }
+
+    public void setTransferedAward(BigInteger transferedAward) {
+        this.transferedAward = transferedAward;
     }
 
     public void resetAvailableAward() {

@@ -54,7 +54,7 @@ public class Pocm extends Ownable implements Contract {
     // 合约创建高度
     private final long createHeight;
     // 初始价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token
-    private BigDecimal initialPrice;
+    private BigInteger initialPrice;
 
     // 奖励发放周期（参数类型为数字，每过XXXX块发放一次）
     private int awardingCycle;
@@ -121,15 +121,14 @@ public class Pocm extends Ownable implements Contract {
     //dapp的唯一识别码
     private String authorizationCode;
 
-    public Pocm(@Required String tokenAddress, @Required BigDecimal price, @Required int awardingCycle,
-                @Required BigDecimal minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus,
+    public Pocm(@Required String tokenAddress, @Required BigInteger cycleRewardTokenAmount, @Required int awardingCycle,
+                @Required BigInteger minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus,
                 String authorizationCode,String rewardHalvingCycle, String maximumDepositAddressCount) {
         tokenContractAddress = new Address(tokenAddress);
         require(tokenContractAddress.isContract(),"tokenAddress应该是合约地址");
-        // 检查 price 小数位不得大于decimals
-        require(price.compareTo(BigDecimal.ZERO) > 0, "价格应该大于0");
-        decimals= Integer.parseInt(tokenContractAddress.callWithReturnValue("decimals","",null,BigInteger.ZERO));
-        require(checkMaximumDecimals(price, decimals), "最多" + decimals + "位小数");
+        require(cycleRewardTokenAmount.compareTo(BigInteger.ZERO) > 0, "每个奖励周期的Token数量应该大于0");
+        require(minimumDepositNULS.compareTo(BigInteger.ZERO) > 0, "最小抵押NULS数量应该大于0");
+        this.decimals= Integer.parseInt(tokenContractAddress.callWithReturnValue("decimals","",null,BigInteger.ZERO));
         require(minimumLocked > 0, "最短锁定区块值应该大于0");
         require(awardingCycle > 0, "奖励发放周期应该大于0");
         int rewardHalvingCycleForInt = 0;
@@ -146,14 +145,14 @@ public class Pocm extends Ownable implements Contract {
         }
         this.createHeight = Block.number();
         this.totalDepositAddressCount = 0;
-        this.initialPrice = price;
+        this.initialPrice = cycleRewardTokenAmount;
         this.awardingCycle = awardingCycle;
         this.rewardHalvingCycle = rewardHalvingCycleForInt;
-        this.minimumDeposit = toNa(minimumDepositNULS);
+        this.minimumDeposit = toNa(new BigDecimal(minimumDepositNULS));
         this.minimumLocked = minimumLocked;
         this.maximumDepositAddressCount = maximumDepositAddressCountForInt;
         this.nextRewardHalvingHeight = this.createHeight + this.rewardHalvingCycle;
-        this.currentPrice = price;
+        this.currentPrice = new BigDecimal(cycleRewardTokenAmount);
         this.authorizationCode=authorizationCode;
 
         name= tokenContractAddress.callWithReturnValue("name","",null,BigInteger.ZERO);
@@ -163,7 +162,7 @@ public class Pocm extends Ownable implements Contract {
         if(openConsensus) {
             openConsensus();
         }
-        emit(new CreateContractEvent(tokenAddress,price,awardingCycle, minimumDepositNULS,minimumLocked, openConsensus,authorizationCode,rewardHalvingCycle, maximumDepositAddressCount));
+        emit(new CreateContractEvent(tokenAddress,cycleRewardTokenAmount,awardingCycle, minimumDepositNULS,minimumLocked, openConsensus,authorizationCode,rewardHalvingCycle, maximumDepositAddressCount));
     }
 
     @Override
@@ -245,7 +244,7 @@ public class Pocm extends Ownable implements Contract {
         }
         BigInteger value = Msg.value();
         long currentHeight = Block.number();
-        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + minimumDeposit);
+        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS");
         long depositNumber = NUMBER++;
 
         DepositDetailInfo detailInfo = new DepositDetailInfo();
@@ -290,7 +289,7 @@ public class Pocm extends Ownable implements Contract {
         }
 
         BigInteger value = Msg.value();
-        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + minimumDeposit);
+        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS");
         long depositNumber = NUMBER++;
         long currentHeight = Block.number();
         DepositDetailInfo detailInfo = new DepositDetailInfo();
@@ -329,11 +328,11 @@ public class Pocm extends Ownable implements Contract {
         String userString = user.toString();
         DepositInfo depositInfo = getDepositInfo(userString);
         // 发放奖励
-        this.receive(depositInfo);
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo);
         BigInteger depositAvailableTotalAmount;
         BigInteger depositTotalAmount;
         MiningInfo miningInfo;
-
+        List<Long> depositNumbers =new ArrayList<Long>();
         //表示退出全部的抵押
         if (depositNumber == 0) {
             miningInfo = mingUsers.get(depositInfo.getDepositorAddress());
@@ -350,6 +349,7 @@ public class Pocm extends Ownable implements Contract {
             for (Long key : depositDetailInfos.keySet()) {
                 DepositDetailInfo detailInfo = depositDetailInfos.get(key);
                 this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
+                depositNumbers.add(key);
             }
             depositInfo.clearDepositDetailInfos();
         } else {
@@ -371,6 +371,7 @@ public class Pocm extends Ownable implements Contract {
             depositInfo.setDepositCount(depositInfo.getDepositCount() - 1);
             //从队列中退出抵押金额
             this.quitDepositToMap(depositAvailableTotalAmount, currentHeight, detailInfo.getDepositHeight());
+            depositNumbers.add(depositNumber);
         }
         boolean isEnoughBalance = totalDepositManager.subtract(depositAvailableTotalAmount);
         require(isEnoughBalance, "余额不足以退还押金，请联系项目方");
@@ -379,8 +380,8 @@ public class Pocm extends Ownable implements Contract {
             //TODO 退出后是否保留该账户的挖矿记录
             depositUsers.remove(userString);
         }
-        emit(new MiningInfoEvent(miningInfo));
-        emit(new QuitDepositEvent(depositInfo.getDepositorAddress()));
+        emit(new CurrentMiningInfoEvent(mingInfosList));
+        emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
         user.transfer(depositTotalAmount);
     }
 
@@ -450,45 +451,6 @@ public class Pocm extends Ownable implements Contract {
     public DepositInfo getDepositInfo(@Required Address address) {
         return getDepositInfo(address.toString());
     }
-
-
-    /**
-     * 当前价格
-     */
-    @View
-    public String currentPrice() {
-        int size = totalDepositList.size();
-        if (size > 0) {
-            RewardCycleInfo cycleInfoTmp = totalDepositList.get(size - 1);
-            BigInteger intAmount = cycleInfoTmp.getAvailableDepositAmount();
-            if (intAmount.compareTo(BigInteger.ZERO) == 0) {
-                return "Unknown";
-            }
-            String amount = toNuls(intAmount).toString();
-            BigDecimal bigAmount = new BigDecimal(amount);
-            BigDecimal currentPrice = cycleInfoTmp.getCurrentPrice().divide(bigAmount, decimals(), BigDecimal.ROUND_DOWN);
-            return currentPrice.toPlainString() + " " + name() + "/NULS .";
-        } else {
-            return "Unknown";
-        }
-    }
-
-    /**
-     * 单价的精度不能超过定义的精度
-     *
-     * @param price    单价
-     * @param decimals 精度
-     * @return
-     */
-    private static boolean checkMaximumDecimals(BigDecimal price, int decimals) {
-        BigInteger a = price.movePointRight(decimals).toBigInteger().multiply(BigInteger.TEN);
-        BigInteger b = price.movePointRight(decimals + 1).toBigInteger();
-        if (a.compareTo(b) != 0) {
-            return false;
-        }
-        return true;
-    }
-
 
     /**
      * 根据挖矿地址从队列中获取挖矿信息
@@ -904,11 +866,33 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
-     * 初始价格
+     * 当前的每个奖励周期奖励Token的数量
      */
     @View
-    public String initialPrice() {
-        return initialPrice.toPlainString() + " " + name() + "/ x NULS";
+    public String currentCycleRewardTokenAmount() {
+        int size = totalDepositList.size();
+        if (size > 0) {
+            RewardCycleInfo cycleInfoTmp = totalDepositList.get(size - 1);
+            BigInteger intAmount = cycleInfoTmp.getAvailableDepositAmount();
+            if (intAmount.compareTo(BigInteger.ZERO) == 0) {
+                return "Unknown";
+            }
+            String amount = toNuls(intAmount).toString();
+            BigDecimal bigAmount = new BigDecimal(amount);
+
+            BigDecimal currentPrice = cycleInfoTmp.getCurrentPrice().divide(bigAmount, decimals(), BigDecimal.ROUND_DOWN);
+            return currentPrice.toPlainString() + " " + name() + "/NULS .";
+        } else {
+            return initialPrice.toString() + " " + name() + "/ x NULS .";
+        }
+    }
+
+    /**
+     * 初始的每个奖励周期奖励Token的数量
+     */
+    @View
+    public String initialCycleRewardTokenAmount() {
+        return initialPrice.toString() + " " + name() + "/ x NULS";
     }
 
     @View
