@@ -203,6 +203,7 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
         consensusManager.addOtherAgent(agentHash);
+        emit(new AgentEvent(agentHash));
     }
 
     /**

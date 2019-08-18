@@ -65,6 +65,8 @@ public class DepositOthersManager {
 
     public void addOtherAgent(String agentHash) {
         require(otherAgents.add(agentHash), "重复的共识节点hash");
+        Object agentInfo = Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
+        require(agentInfo != null, "无效的共识节点hash");
     }
 
     public BigInteger deposit(BigInteger availableAmount) {
