@@ -425,6 +425,41 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
+     *
+     * @return 抵押者为自己抵押后未领取的收益
+     */
+    @View
+    public String calcUnReceiveAwards(@Required Address depositorAddress){
+        String address =depositorAddress.toString();
+        DepositInfo depositInfo = getDepositInfo(address);
+        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,address);
+        return unReceiveAwards.toString();
+    }
+
+    /**
+     *
+     * @return 由挖矿接收地址发起计算未领取的收益；当抵押用户为其他用户做抵押挖矿时，接收token用户可以发起此方法
+     */
+    @View
+    public String calcUnReceiveAwardsForMiningAddress(@Required Address receiverMiningAddress){
+        BigInteger unReceiveAwards=BigInteger.ZERO;
+        String address =receiverMiningAddress.toString();
+        List<String> alreadyReceive = new ArrayList<String>();
+        MiningInfo miningInfo = mingUsers.get(address);
+        require(miningInfo != null, "没有替" + address + "用户抵押挖矿的挖矿信息");
+        Map<Long, MiningDetailInfo> detailInfos = miningInfo.getMiningDetailInfos();
+        for (Long key : detailInfos.keySet()) {
+            MiningDetailInfo detailInfo = detailInfos.get(key);
+            if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
+                DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
+                unReceiveAwards =unReceiveAwards.add(this.calcUnReceiceMining(depositInfo,address));
+                alreadyReceive.add(detailInfo.getDepositorAddress());
+            }
+        }
+        return  unReceiveAwards.toString();
+    }
+
+    /**
      * 合约创建者清空剩余余额
      */
     public void clearContract() {
@@ -597,7 +632,6 @@ public class Pocm extends Ownable implements Contract {
             allocationAmount=allocationAmountTmp;
         }
 
-        BigInteger miningNew = BigInteger.ZERO;
         for(Long key:calcRewardIds){
             DepositDetailInfo detailInfo = detailInfos.get(key);
             MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
@@ -616,7 +650,6 @@ public class Pocm extends Ownable implements Contract {
                 mingValueNew = mingResult.get(mingDetailInfo.getReceiverMiningAddress()).add(mingValueNew);
             }
             mingResult.put(mingDetailInfo.getReceiverMiningAddress(), mingValueNew);
-            miningNew.add(mingValueNew);
 
             //封装当次的挖矿信息
             CurrentMingInfo currentMingInfo= new CurrentMingInfo();
@@ -627,6 +660,48 @@ public class Pocm extends Ownable implements Contract {
             mingInfosList.add(currentMingInfo);
         }
         return mingInfosList;
+    }
+
+    /**
+     * 计算未获取的收益
+     * @param depositInfo
+     */
+    private BigInteger calcUnReceiceMining(DepositInfo depositInfo,String receiceAddress){
+        BigInteger mining = BigInteger.ZERO;
+        long currentHeight = Block.number();
+        int currentRewardCycle = this.calcRewardCycle(currentHeight);
+        //将上一个奖励周期的总抵押数更新至当前奖励周期的总抵押数
+        this.moveLastDepositToCurrentCycle(currentHeight);
+        Map<Long, DepositDetailInfo> detailInfos = depositInfo.getDepositDetailInfos();
+        for (Long key : detailInfos.keySet()) {
+            DepositDetailInfo detailInfo = detailInfos.get(key);
+            //只计算指定address的收益
+            if(!detailInfo.getMiningAddress().equals(receiceAddress)){
+                continue;
+            }
+            BigInteger miningTmp = BigInteger.ZERO;
+            MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
+            MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
+            int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
+            //说明未到领取奖励的高度
+            if (nextStartMiningCycle > currentRewardCycle) {
+                continue;
+            }
+            BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
+            BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
+            miningTmp = miningTmp.add(availableDepositAmountNULS.multiply(sumPrice).toBigInteger());
+            mining = mining.add(miningTmp);
+        }
+
+        //检查奖励的Token总额是否超过的预分配的Token数量
+        BigInteger allocationAmountTmp=allocationAmount.add(mining);
+        BigDecimal precent=BigDecimal.ONE;
+        if(allocationAmountTmp.compareTo(totalAllocation)>0){
+            isAcceptDeposit=false;
+            //超过总Token，剩下的Token作为未领取的收益
+            mining=totalAllocation.subtract(allocationAmount);
+        }
+        return mining;
     }
 
     /**
