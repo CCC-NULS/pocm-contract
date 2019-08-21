@@ -39,7 +39,7 @@ public class TotalDepositManager {
 
     private ConsensusManager consensusManager;
 
-    private boolean openConsensus=false;
+    private boolean openConsensus = false;
 
     public TotalDepositManager() {
         this.totalDeposit = BigInteger.ZERO;
@@ -64,15 +64,13 @@ public class TotalDepositManager {
 
     public boolean subtract(BigInteger value) {
         this.totalDeposit = this.totalDeposit.subtract(value);
+        if(openConsensus) {
+            return consensusManager.withdrawIfPermittedWrapper(value);
+        }
         if(Msg.address().balance().compareTo(value) >= 0) {
             return true;
-        } else {
-            if(openConsensus) {
-                return consensusManager.withdrawIfPermittedWrapper(value);
-            } else {
-                return false;
-            }
         }
+        return false;
     }
 
     public void setConsensusManager(ConsensusManager consensusManager) {

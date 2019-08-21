@@ -70,17 +70,32 @@ public class DepositOthersManager {
     }
 
     public BigInteger deposit(BigInteger availableAmount) {
+        int size = otherAgents.size();
+        if(size == 0) {
+            // 没有其他节点的共识信息，跳过此流程
+            return BigInteger.ZERO;
+        }
         BigInteger actualDeposit = BigInteger.ZERO;
         String[] agentInfo;
+        String[] firstAgentInfo = null;
+        String firstAgentHash = null;
         // 选择一个可委托金额足够的共识节点
+        boolean allInActive = true;
+        int i = 0;
         for(String agentHash : otherAgents) {
+            i++;
             agentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
+            if(i == 1) {
+                firstAgentHash = agentHash;
+                firstAgentInfo = agentInfo;
+            }
             // 0-待共识 1-共识中
             String status = agentInfo[9];
             //emit(new ErrorEvent("status", status));
-            if(!ACTIVE_AGENT.equals(status)) {
+            if(!ACTIVE_AGENT.equals(status) && size != 1) {
                 continue;
             }
+            allInActive = false;
             // 合约节点已委托金额
             BigInteger totalDeposit = new BigInteger(agentInfo[4]);
             BigInteger currentAvailable = MAX_TOTAL_DEPOSIT.subtract(totalDeposit);
@@ -92,6 +107,18 @@ public class DepositOthersManager {
                 this.deposit(agentHash, currentAvailable);
                 actualDeposit = actualDeposit.add(currentAvailable);
                 availableAmount = availableAmount.subtract(currentAvailable);
+            }
+        }
+        // 当所有节点(超过1个)都未激活时，选第一个节点委托
+        if(allInActive) {
+            BigInteger totalDeposit = new BigInteger(firstAgentInfo[4]);
+            BigInteger currentAvailable = MAX_TOTAL_DEPOSIT.subtract(totalDeposit);
+            if(currentAvailable.compareTo(availableAmount) >= 0) {
+                this.deposit(firstAgentHash, availableAmount);
+                actualDeposit = actualDeposit.add(availableAmount);
+            } else {
+                this.deposit(firstAgentHash, currentAvailable);
+                actualDeposit = actualDeposit.add(currentAvailable);
             }
         }
         return actualDeposit;
@@ -110,15 +137,14 @@ public class DepositOthersManager {
             }
             actualWithdraw = depositLockedAmount;
             depositLockedAmount = BigInteger.ZERO;
+            depositList.clear();
         } else {
             // 退出部分委托，以达到期望值
-            for(ConsensusDepositInfo info : depositList) {
+            while(actualWithdraw.compareTo(expectWithdrawAmount) < 0) {
+                ConsensusDepositInfo info = depositList.removeFirst();
                 this.withdraw(info.getHash());
                 actualWithdraw = actualWithdraw.add(info.getDeposit());
                 depositLockedAmount = depositLockedAmount.subtract(info.getDeposit());
-                if(actualWithdraw.compareTo(expectWithdrawAmount) >= 0) {
-                    break;
-                }
             }
         }
         return actualWithdraw;

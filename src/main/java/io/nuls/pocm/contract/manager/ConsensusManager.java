@@ -96,16 +96,13 @@ public class ConsensusManager {
      */
     public void createOrDepositIfPermitted(BigInteger value) {
         availableAmount = availableAmount.add(value);
-        if(depositOthersManager.otherAgentsSize() == 0) {
-            // 没有其他节点的共识信息，跳过此流程
-            //emit(new ErrorEvent("log", "in 209L"));
-            return;
-        }
         /**
          * 委托其他节点
          */
-        BigInteger actualDeposit = depositOthersManager.deposit(availableAmount);
-        availableAmount = availableAmount.subtract(actualDeposit);
+        if(availableAmount.compareTo(MIN_JOIN_DEPOSIT) >= 0) {
+            BigInteger actualDeposit = depositOthersManager.deposit(availableAmount);
+            availableAmount = availableAmount.subtract(actualDeposit);
+        }
     }
 
     /**
@@ -178,7 +175,7 @@ public class ConsensusManager {
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("{");
-        sb.append(",\"availableAmount\":")
+        sb.append("\"availableAmount\":")
                 .append('\"').append(toNuls(availableAmount).toPlainString()).append('\"');
         sb.append(",\"awardInfo\":")
                 .append(awardInfo.toString());

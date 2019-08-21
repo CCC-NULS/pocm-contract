@@ -1074,7 +1074,7 @@ public class Pocm extends Ownable implements Contract {
                 .append('\"').append(totalDepositList).append('\"');
         if(openConsensus) {
             sb.append(",\"consensusManager\":")
-                    .append(consensusManager==null?" ":consensusManager.toString());
+                    .append(consensusManager==null?"0":consensusManager.toString());
         }
         sb.append('}');
         return sb.toString();
