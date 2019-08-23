@@ -436,16 +436,36 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
+     * 领取抵押者参与抵押的交易未领取的收益
+     * @param depositorAddress 抵押者账户地址
+     * @param depositNumber 抵押编号，若为0表示计算所有抵押交易的收益
+     * @return
+     */
+    @View
+    public String calcUnReceiveAwards(@Required Address depositorAddress,String depositNumber){
+        long number = 0;
+        if (depositNumber != null && depositNumber.trim().length() > 0) {
+            require(canConvertNumeric(depositNumber.trim(), String.valueOf(Long.MAX_VALUE)), "抵押编号输入不合法，应该输入数字字符");
+            number = Long.valueOf(depositNumber.trim());
+        }
+        String address =depositorAddress.toString();
+        DepositInfo depositInfo = getDepositInfo(address);
+        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,null,number);
+        return unReceiveAwards.toString();
+    }
+
+    /**
      *
      * @return 抵押者为自己抵押后未领取的收益
      */
     @View
-    public String calcUnReceiveAwards(@Required Address depositorAddress){
+    public String calcUnReceiveAwardsForOwner(@Required Address depositorAddress){
         String address =depositorAddress.toString();
         DepositInfo depositInfo = getDepositInfo(address);
-        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,address);
+        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,address,0);
         return unReceiveAwards.toString();
     }
+
 
     /**
      *
@@ -463,7 +483,7 @@ public class Pocm extends Ownable implements Contract {
             MiningDetailInfo detailInfo = detailInfos.get(key);
             if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
                 DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
-                unReceiveAwards =unReceiveAwards.add(this.calcUnReceiceMining(depositInfo,address));
+                unReceiveAwards =unReceiveAwards.add(this.calcUnReceiceMining(depositInfo,address,0));
                 alreadyReceive.add(detailInfo.getDepositorAddress());
             }
         }
@@ -676,8 +696,11 @@ public class Pocm extends Ownable implements Contract {
     /**
      * 计算未获取的收益
      * @param depositInfo
+     * @param receiceAddress 接收奖励的地址,若为null表示计算所有接收奖励的地址
+     * @param depositNumber  抵押编号，若为0表示不限制抵押编号
+     * @return
      */
-    private BigInteger calcUnReceiceMining(DepositInfo depositInfo,String receiceAddress){
+    private BigInteger calcUnReceiceMining(DepositInfo depositInfo,String receiceAddress,long depositNumber){
         BigInteger mining = BigInteger.ZERO;
         long currentHeight = Block.number();
         int currentRewardCycle = this.calcRewardCycle(currentHeight);
@@ -685,9 +708,13 @@ public class Pocm extends Ownable implements Contract {
         this.moveLastDepositToCurrentCycle(currentHeight);
         Map<Long, DepositDetailInfo> detailInfos = depositInfo.getDepositDetailInfos();
         for (Long key : detailInfos.keySet()) {
+            //若指定了抵押编号，则只计算此抵押编号的奖励收益
+            if(depositNumber!=0 && key!=depositNumber){
+                continue;
+            }
             DepositDetailInfo detailInfo = detailInfos.get(key);
             //只计算指定address的收益
-            if(!detailInfo.getMiningAddress().equals(receiceAddress)){
+            if(receiceAddress!=null && !detailInfo.getMiningAddress().equals(receiceAddress)){
                 continue;
             }
             BigInteger miningTmp = BigInteger.ZERO;
