@@ -121,6 +121,17 @@ public class Pocm extends Ownable implements Contract {
     //dapp的唯一识别码
     private String authorizationCode;
 
+    /**
+     * @param tokenAddress Token合约地址
+     * @param cycleRewardTokenAmount 单周期奖励的Token数量
+     * @param awardingCycle 奖励发放周期
+     * @param minimumDepositNULS 最低抵押NULS数量
+     * @param minimumLocked 锁定区块个数
+     * @param openConsensus 是否开启合约共识
+     * @param authorizationCode dapp的唯一识别码
+     * @param rewardHalvingCycle 奖励减半周期（默认空，不减半）
+     * @param maximumDepositAddressCount 最大参与抵押人数（默认空，不限制）
+     */
     public Pocm(@Required String tokenAddress, @Required BigInteger cycleRewardTokenAmount, @Required int awardingCycle,
                 @Required BigInteger minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus,
                 String authorizationCode,String rewardHalvingCycle, String maximumDepositAddressCount) {
