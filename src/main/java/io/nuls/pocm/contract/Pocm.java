@@ -602,7 +602,7 @@ public class Pocm extends Ownable implements Contract {
                 args[0]=new String[]{ming.getKey()};
                 args[1]=new String[]{mingValue.toString()};
                 tokenContractAddress.call("transfer","",args,BigInteger.ZERO);
-                allocationAmount=allocationAmount.add(mingValue);
+               // allocationAmount=allocationAmount.add(mingValue);
             }
         }
 
