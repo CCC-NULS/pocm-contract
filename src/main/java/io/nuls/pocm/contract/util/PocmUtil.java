@@ -47,6 +47,14 @@ public class PocmUtil {
         return nuls.scaleByPowerOfTen(8).toBigInteger();
     }
 
+    public static BigInteger toMinUit(BigInteger value,int decimals) {
+        return value.multiply(BigInteger.TEN.pow(decimals));
+    }
+
+    public static BigDecimal toMaxUit(BigInteger value,int decimals) {
+        return new BigDecimal(value).movePointLeft(decimals);
+    }
+
     /**
      * 检查空投数组的数额是否正确
      * @param receiverAmount

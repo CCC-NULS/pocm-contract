@@ -33,10 +33,8 @@ import io.nuls.contract.sdk.annotation.View;
 import io.nuls.pocm.contract.event.*;
 import io.nuls.pocm.contract.manager.ConsensusManager;
 import io.nuls.pocm.contract.manager.TotalDepositManager;
-import io.nuls.pocm.contract.manager.deposit.DepositOthersManager;
 import io.nuls.pocm.contract.model.*;
 import io.nuls.pocm.contract.ownership.Ownable;
-import io.nuls.pocm.contract.token.PocmToken;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -50,10 +48,10 @@ import static io.nuls.pocm.contract.util.PocmUtil.*;
  * @date: 2019-03-15
  */
 public class Pocm extends Ownable implements Contract {
-    private final BigDecimal HLAVING = new BigDecimal("2");
+    private final BigInteger HLAVING = new BigInteger("2");
     // 合约创建高度
     private final long createHeight;
-    // 初始价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token
+    // 初始价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token（最大单位）
     private BigInteger initialPrice;
 
     // 奖励发放周期（参数类型为数字，每过XXXX块发放一次）
@@ -88,8 +86,8 @@ public class Pocm extends Ownable implements Contract {
     //下一次奖励减半的高度
     private long nextRewardHalvingHeight = 0L;
 
-    // 当前价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token
-    private BigDecimal currentPrice;
+    // 当前价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token（最小单位）
+    private BigInteger currentPrice;
 
     private static long NUMBER = 1L;
 
@@ -163,7 +161,7 @@ public class Pocm extends Ownable implements Contract {
         this.minimumLocked = minimumLocked;
         this.maximumDepositAddressCount = maximumDepositAddressCountForInt;
         this.nextRewardHalvingHeight = this.createHeight + this.rewardHalvingCycle;
-        this.currentPrice = new BigDecimal(cycleRewardTokenAmount);
+        this.currentPrice = toMinUit(cycleRewardTokenAmount,this.decimals);
         this.authorizationCode=authorizationCode;
 
         name= tokenContractAddress.callWithReturnValue("name","",null,BigInteger.ZERO);
@@ -728,6 +726,7 @@ public class Pocm extends Ownable implements Contract {
             BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
             BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
             miningTmp = miningTmp.add(availableDepositAmountNULS.multiply(sumPrice).toBigInteger());
+
             mining = mining.add(miningTmp);
         }
 
@@ -802,7 +801,8 @@ public class Pocm extends Ownable implements Contract {
             //计算奖励减半
             long rewardingHeight = putCycle * this.awardingCycle + this.createHeight;
             if (this.rewardHalvingCycle > 0 && this.nextRewardHalvingHeight <= rewardingHeight) {
-                this.currentPrice = this.currentPrice.divide(this.HLAVING, decimals(), BigDecimal.ROUND_DOWN);
+                this.currentPrice=this.currentPrice.divide(this.HLAVING);
+                //this.currentPrice = this.currentPrice.divide(this.HLAVING, decimals(), BigDecimal.ROUND_DOWN);
                 this.nextRewardHalvingHeight += this.rewardHalvingCycle;
             }
 
@@ -877,7 +877,8 @@ public class Pocm extends Ownable implements Contract {
         long height = startRewardHalvingHeight;
         while (height <= currentHeight) {
             RewardCycleInfo cycleInfo = new RewardCycleInfo();
-            this.currentPrice = this.currentPrice.divide(this.HLAVING, decimals(), BigDecimal.ROUND_DOWN);
+            this.currentPrice=this.currentPrice.divide(this.HLAVING);
+            //this.currentPrice = this.currentPrice.divide(this.HLAVING, decimals(), BigDecimal.ROUND_DOWN);
             rewardingCycle = this.calcRewardCycle(height);
             boolean isContainsKey = totalDepositIndex.containsKey(rewardingCycle);
             if (isContainsKey) {
@@ -959,10 +960,10 @@ public class Pocm extends Ownable implements Contract {
         int startIndex = totalDepositIndex.get(startCycle - 1) + 1;
         for (int i = startIndex; i < totalDepositList.size(); i++) {
             RewardCycleInfo cycleInfoTmp = totalDepositList.get(i);
-            String amount = toNuls(cycleInfoTmp.getAvailableDepositAmount()).toString();
-            if (!"0".equals(amount)) {
-                BigDecimal bigAmount = new BigDecimal(amount);
-                sumPrice = cycleInfoTmp.getCurrentPrice().divide(bigAmount, decimals(), BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
+            if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                BigDecimal amount = toNuls(cycleInfoTmp.getAvailableDepositAmount());
+                //为了提高计算的精确度，保留小数点后8位
+                sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
             }
             sumPriceForRegin = sumPriceForRegin.add(sumPrice);
         }
@@ -991,11 +992,7 @@ public class Pocm extends Ownable implements Contract {
             if (intAmount.compareTo(BigInteger.ZERO) == 0) {
                 return "Unknown";
             }
-            String amount = toNuls(intAmount).toString();
-            BigDecimal bigAmount = new BigDecimal(amount);
-
-            BigDecimal currentPrice = cycleInfoTmp.getCurrentPrice().divide(bigAmount, decimals(), BigDecimal.ROUND_DOWN);
-            return currentPrice.toPlainString() + " " + name() + "/NULS .";
+            return toMaxUit(cycleInfoTmp.getCurrentPrice().multiply(BigInteger.TEN.pow(8)).divide(intAmount),this.decimals).toPlainString()+ " " + name() + "/NULS .";
         } else {
             return initialPrice.toString() + " " + name() + "/ x NULS .";
         }
