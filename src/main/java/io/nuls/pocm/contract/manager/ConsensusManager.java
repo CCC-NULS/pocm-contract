@@ -166,6 +166,13 @@ public class ConsensusManager {
     }
 
     /**
+     * 已转移的共识奖励
+     */
+    public BigInteger getTransferedConsensusReward() {
+        return awardInfo.getTransferedAward();
+    }
+
+    /**
      * 获取可委托共识的空闲金额
      */
     public BigInteger getAvailableAmount() {

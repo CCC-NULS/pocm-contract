@@ -1083,7 +1083,16 @@ public class Pocm extends Ownable implements Contract {
     @View
     public String ownerAvailableConsensusAward() {
         require(openConsensus, "未开启共识功能");
-        return toNuls(consensusManager.getAvailableConsensusReward()).toPlainString();
+        return consensusManager.getAvailableConsensusReward().toString();
+    }
+
+    /**
+     * 查询共识总奖励金额
+     */
+    @View
+    public String ownerTotalConsensusAward() {
+        require(openConsensus, "未开启共识功能");
+        return consensusManager.getAvailableConsensusReward().add(consensusManager.getTransferedConsensusReward()).toString();
     }
 
     /**
@@ -1092,7 +1101,7 @@ public class Pocm extends Ownable implements Contract {
     @View
     public String freeAmountForConsensusDeposit() {
         require(openConsensus, "未开启共识功能");
-        return toNuls(consensusManager.getAvailableAmount()).toPlainString();
+        return consensusManager.getAvailableAmount().toString();
     }
 
     /**
