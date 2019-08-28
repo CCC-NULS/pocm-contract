@@ -25,57 +25,26 @@ package io.nuls.pocm.contract.model;
 
 import java.math.BigInteger;
 
-import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
-
 /**
  * @author: PierreLuo
- * @date: 2019-05-14
+ * @date: 2019-08-28
  */
-public class ConsensusDepositInfo {
-    private String agentHash;
-    private String hash;
-    private BigInteger deposit;
+public class AgentInfo {
+    private BigInteger agentDeposits;
 
-    public ConsensusDepositInfo(String agentHash, String hash, BigInteger deposit) {
-        this.agentHash = agentHash;
-        this.hash = hash;
-        this.deposit = deposit;
+    public AgentInfo() {
+        this.agentDeposits = BigInteger.ZERO;
     }
 
-    public String getAgentHash() {
-        return agentHash;
+    public BigInteger getAgentDeposits() {
+        return agentDeposits;
     }
 
-    public void setAgentHash(String agentHash) {
-        this.agentHash = agentHash;
+    public void add(BigInteger deposit) {
+        this.agentDeposits = this.agentDeposits.add(deposit);
     }
 
-    public String getHash() {
-        return hash;
-    }
-
-    public void setHash(String hash) {
-        this.hash = hash;
-    }
-
-    public BigInteger getDeposit() {
-        return deposit;
-    }
-
-    public void setDeposit(BigInteger deposit) {
-        this.deposit = deposit;
-    }
-
-    @Override
-    public String toString() {
-        final StringBuilder sb = new StringBuilder("{");
-        sb.append("\"agentHash\":")
-                .append('\"').append(agentHash).append('\"');
-        sb.append(",\"hash\":")
-                .append('\"').append(hash).append('\"');
-        sb.append(",\"deposit\":")
-                .append(deposit);
-        sb.append('}');
-        return sb.toString();
+    public void deposit(BigInteger deposit) {
+        this.agentDeposits = this.agentDeposits.subtract(deposit);
     }
 }
