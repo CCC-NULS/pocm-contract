@@ -27,6 +27,8 @@ import io.nuls.contract.sdk.Utils;
 import io.nuls.pocm.contract.event.ErrorEvent;
 import io.nuls.pocm.contract.model.AgentInfo;
 import io.nuls.pocm.contract.model.ConsensusDepositInfo;
+import jdk.internal.agent.resources.agent;
+
 import java.math.BigInteger;
 import java.util.*;
 
@@ -173,10 +175,12 @@ public class DepositOthersManager {
                 return actualWithdraw;
             } else if (remain.compareTo(BigInteger.ZERO) >= 0) {
                 // 找出最小的一笔退出抵押的金额（使闲置金额最小）
-                for(ConsensusDepositInfo info : depositList) {
+                for(Iterator<ConsensusDepositInfo> iterator = depositList.iterator(); iterator.hasNext();){
+                    ConsensusDepositInfo info = iterator.next();
                     if(info.getDeposit().compareTo(expectWithdrawAmount) >= 0) {
                         this.withdraw(info);
                         actualWithdraw = expectWithdrawAmount;
+                        iterator.remove();
                         return actualWithdraw;
                     }
                 }
