@@ -44,7 +44,7 @@ public class AgentInfo {
         this.agentDeposits = this.agentDeposits.add(deposit);
     }
 
-    public void deposit(BigInteger deposit) {
+    public void subtract(BigInteger deposit) {
         this.agentDeposits = this.agentDeposits.subtract(deposit);
     }
 }

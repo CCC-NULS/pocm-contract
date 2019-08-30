@@ -25,11 +25,13 @@ package io.nuls.pocm.contract.manager;
 
 import io.nuls.contract.sdk.Address;
 import io.nuls.contract.sdk.Msg;
+import io.nuls.pocm.contract.event.ErrorEvent;
 import io.nuls.pocm.contract.manager.deposit.DepositOthersManager;
 import io.nuls.pocm.contract.model.ConsensusAwardInfo;
 
 import java.math.BigInteger;
 
+import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
 
@@ -128,6 +130,9 @@ public class ConsensusManager {
         if (availableAmount.compareTo(value) >= 0) {
             availableAmount = availableAmount.subtract(value);
             return true;
+        }else{
+            value = value.subtract(availableAmount);
+            availableAmount = BigInteger.ZERO;
         }
         // 退出委托其他节点的金额
         BigInteger actualWithdraw = depositOthersManager.withdraw(value);

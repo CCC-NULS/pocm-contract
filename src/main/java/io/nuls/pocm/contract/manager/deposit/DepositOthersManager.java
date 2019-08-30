@@ -24,6 +24,7 @@
 package io.nuls.pocm.contract.manager.deposit;
 
 import io.nuls.contract.sdk.Utils;
+import io.nuls.pocm.contract.event.ErrorEvent;
 import io.nuls.pocm.contract.model.AgentInfo;
 import io.nuls.pocm.contract.model.ConsensusDepositInfo;
 
@@ -33,6 +34,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
+import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.manager.ConsensusManager.*;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
@@ -110,7 +112,7 @@ public class DepositOthersManager {
                 this.deposit(agentHash, availableAmount, agent);
                 actualDeposit = actualDeposit.add(availableAmount);
                 break;
-            } else {
+            } else if(currentAvailable.compareTo(MIN_JOIN_DEPOSIT) >= 0){
                 this.deposit(agentHash, currentAvailable, agent);
                 actualDeposit = actualDeposit.add(currentAvailable);
                 availableAmount = availableAmount.subtract(currentAvailable);
@@ -130,7 +132,7 @@ public class DepositOthersManager {
         if(currentAvailable.compareTo(availableAmount) >= 0) {
             this.deposit(agentHash, availableAmount, agent);
             actualDeposit = actualDeposit.add(availableAmount);
-        } else {
+        } else if(currentAvailable.compareTo(MIN_JOIN_DEPOSIT) >= 0) {
             this.deposit(agentHash, currentAvailable, agent);
             actualDeposit = actualDeposit.add(currentAvailable);
         }
@@ -156,10 +158,10 @@ public class DepositOthersManager {
         BigInteger actualWithdraw = BigInteger.ZERO;
         // 退出所有委托
         if(expectWithdrawAmount.compareTo(depositLockedAmount) >= 0) {
+            actualWithdraw = depositLockedAmount;
             for(ConsensusDepositInfo info : depositList) {
                 this.withdraw(info);
             }
-            actualWithdraw = depositLockedAmount;
             depositLockedAmount = BigInteger.ZERO;
             depositList.clear();
             return actualWithdraw;
@@ -169,12 +171,8 @@ public class DepositOthersManager {
             BigInteger remain = last.getDeposit().subtract(expectWithdrawAmount);
             // 先找最大的委托，若在退出抵押后剩余大于2000个，退出这笔委托，再把剩余的委托进去
             if(remain.compareTo(MIN_JOIN_DEPOSIT) >= 0 ) {
-                depositList.removeFirst();
+                depositList.removeLast();
                 this.withdraw(last);
-                // 剩下的再次委托
-                String lastAgentHash = last.getAgentHash();
-                AgentInfo agent = otherAgents.get(lastAgentHash);
-                this.deposit(lastAgentHash, remain, agent);
                 actualWithdraw = expectWithdrawAmount;
                 return actualWithdraw;
             } else if (remain.compareTo(BigInteger.ZERO) >= 0) {
@@ -188,7 +186,7 @@ public class DepositOthersManager {
                 }
             } else {
                 // 从小到大退出委托，直到满足抵押金额
-                while(actualWithdraw.compareTo(expectWithdrawAmount) < 0) {
+                while(actualWithdraw.compareTo(expectWithdrawAmount) <= 0) {
                     ConsensusDepositInfo info = depositList.removeFirst();
                     this.withdraw(info);
                     actualWithdraw = actualWithdraw.add(info.getDeposit());
@@ -200,6 +198,7 @@ public class DepositOthersManager {
 
 
     private String deposit(String agentHash, BigInteger depositNa, AgentInfo agent) {
+        emit(new ErrorEvent("委托金额", depositNa.toString()));
         String[] args = new String[]{agentHash, depositNa.toString()};
         String txHash = (String) Utils.invokeExternalCmd("cs_contractDeposit", args);
         this.orderlyAdditionToDepositList(new ConsensusDepositInfo(agentHash, txHash, depositNa));
@@ -213,6 +212,8 @@ public class DepositOthersManager {
         String[] args = new String[]{joinAgentHash};
         String txHash = (String) Utils.invokeExternalCmd("cs_contractWithdraw", args);
         depositLockedAmount = depositLockedAmount.subtract(info.getDeposit());
+        AgentInfo agent = otherAgents.get(info.getAgentHash());
+        agent.subtract(info.getDeposit());
         return txHash;
     }
 
