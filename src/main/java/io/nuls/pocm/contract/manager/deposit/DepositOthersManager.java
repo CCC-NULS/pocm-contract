@@ -27,12 +27,8 @@ import io.nuls.contract.sdk.Utils;
 import io.nuls.pocm.contract.event.ErrorEvent;
 import io.nuls.pocm.contract.model.AgentInfo;
 import io.nuls.pocm.contract.model.ConsensusDepositInfo;
-
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
@@ -215,6 +211,28 @@ public class DepositOthersManager {
         AgentInfo agent = otherAgents.get(info.getAgentHash());
         agent.subtract(info.getDeposit());
         return txHash;
+    }
+
+    /**
+     * 停止节点
+     */
+    public BigInteger stopAgent(String agentHash) {
+        BigInteger withdrawAmount = BigInteger.ZERO;
+        String[] agentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
+        int deleteHeight = Integer.valueOf(agentInfo[8]);
+        if(deleteHeight >= 0){
+            //删除已委托该节点的共识委托信息，并修改锁定金额
+            for(Iterator<ConsensusDepositInfo> iterator = depositList.iterator(); iterator.hasNext();){
+                ConsensusDepositInfo depositInfo = iterator.next();
+                if(agentHash.equals(depositInfo.getAgentHash())){
+                    depositLockedAmount = depositLockedAmount.subtract(depositInfo.getDeposit());
+                    withdrawAmount = withdrawAmount.add(depositInfo.getDeposit());
+                    iterator.remove();
+                }
+            }
+            otherAgents.remove(agentHash);
+        }
+        return withdrawAmount;
     }
 
     /**
