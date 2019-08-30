@@ -163,32 +163,14 @@ public class DepositOthersManager {
             depositList.clear();
             return actualWithdraw;
         } else {
-            // 退出部分委托，以达到期望值
-            ConsensusDepositInfo last = depositList.getLast();
-            BigInteger remain = last.getDeposit().subtract(expectWithdrawAmount);
-            // 先找最大的委托，若在退出抵押后剩余大于2000个，退出这笔委托，再把剩余的委托进去
-            if(remain.compareTo(MIN_JOIN_DEPOSIT) >= 0 ) {
-                depositList.removeLast();
-                this.withdraw(last);
-                actualWithdraw = expectWithdrawAmount;
-                return actualWithdraw;
-            } else if (remain.compareTo(BigInteger.ZERO) >= 0) {
-                // 找出最小的一笔退出抵押的金额（使闲置金额最小）
-                for(Iterator<ConsensusDepositInfo> iterator = depositList.iterator(); iterator.hasNext();){
-                    ConsensusDepositInfo info = iterator.next();
-                    if(info.getDeposit().compareTo(expectWithdrawAmount) >= 0) {
-                        this.withdraw(info);
-                        actualWithdraw = expectWithdrawAmount;
-                        iterator.remove();
-                        return actualWithdraw;
-                    }
-                }
-            } else {
-                // 从小到大退出委托，直到满足抵押金额
-                while(actualWithdraw.compareTo(expectWithdrawAmount) <= 0) {
-                    ConsensusDepositInfo info = depositList.removeFirst();
-                    this.withdraw(info);
-                    actualWithdraw = actualWithdraw.add(info.getDeposit());
+            BigInteger withdrawAmount;
+            while (!expectWithdrawAmount.equals(BigInteger.ZERO)){
+                withdrawAmount = withdrawRecursion(expectWithdrawAmount);
+                actualWithdraw = actualWithdraw.add(withdrawAmount);
+                if(withdrawAmount.compareTo(expectWithdrawAmount) >= 0){
+                    expectWithdrawAmount = BigInteger.ZERO;
+                }else{
+                    expectWithdrawAmount = expectWithdrawAmount.subtract(withdrawAmount);
                 }
             }
         }
@@ -214,6 +196,29 @@ public class DepositOthersManager {
         AgentInfo agent = otherAgents.get(info.getAgentHash());
         agent.subtract(info.getDeposit());
         return txHash;
+    }
+
+    private BigInteger withdrawRecursion(BigInteger expectWithdrawAmount){
+        ConsensusDepositInfo maxDeposit = depositList.getLast();
+        BigInteger realWithdrawAmount = BigInteger.ZERO;
+        //当退出金额大于最大的委托则退出最大委托；否则从小到大遍历找到大于退出金额的第一条委托记录
+        if(expectWithdrawAmount.compareTo(maxDeposit.getDeposit()) >= 0){
+            depositList.removeLast();
+            this.withdraw(maxDeposit);
+            realWithdrawAmount = maxDeposit.getDeposit();
+        }else{
+            // 找出最小的一笔退出抵押的金额（使闲置金额最小）
+            for(Iterator<ConsensusDepositInfo> iterator = depositList.iterator(); iterator.hasNext();){
+                ConsensusDepositInfo info = iterator.next();
+                if(info.getDeposit().compareTo(expectWithdrawAmount) >= 0) {
+                    this.withdraw(info);
+                    realWithdrawAmount = info.getDeposit();
+                    iterator.remove();
+                    break;
+                }
+            }
+        }
+        return realWithdrawAmount;
     }
 
     /**
