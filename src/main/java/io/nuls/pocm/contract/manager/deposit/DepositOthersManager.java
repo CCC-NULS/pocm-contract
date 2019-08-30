@@ -27,7 +27,6 @@ import io.nuls.contract.sdk.Utils;
 import io.nuls.pocm.contract.event.ErrorEvent;
 import io.nuls.pocm.contract.model.AgentInfo;
 import io.nuls.pocm.contract.model.ConsensusDepositInfo;
-import jdk.internal.agent.resources.agent;
 
 import java.math.BigInteger;
 import java.util.*;
