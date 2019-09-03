@@ -449,6 +449,28 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
+     * 统计未分配的Token数量 = 总Token数量-已分配Token-未领取Token数量
+     * @return
+     */
+    @View
+    public String calcUnAllocationTokenAmount(){
+        BigInteger result=BigInteger.ZERO;
+        if(allocationAmount.compareTo(totalAllocation)==0){
+            return result.toString();
+        }
+        Iterator<DepositInfo> iter=depositUsers.values().iterator();
+        BigInteger unReceiveAwards=BigInteger.ZERO;
+        while (iter.hasNext()){
+            unReceiveAwards=unReceiveAwards.add(this.calcUnReceiceMining(iter.next(),null,0));
+        }
+        result=this.totalAllocation.subtract(this.allocationAmount).subtract(unReceiveAwards);
+        if(result.compareTo(BigInteger.ZERO)<0){
+            result=BigInteger.ZERO;
+        }
+        return result.toString();
+    }
+
+    /**
      * 领取抵押者参与抵押的交易未领取的收益
      * @param depositorAddress 抵押者账户地址
      * @param depositNumber 抵押编号，若为0表示计算所有抵押交易的收益
