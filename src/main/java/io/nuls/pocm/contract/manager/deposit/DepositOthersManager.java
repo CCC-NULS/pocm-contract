@@ -70,6 +70,26 @@ public class DepositOthersManager {
         require(agentInfo != null, "无效的共识节点hash");
     }
 
+    public BigInteger removeAgent(String agentHash) {
+        BigInteger withdrawAmount = BigInteger.ZERO;
+        require(otherAgents.containsKey(agentHash), "节点不存在");
+        Object agentInfo = Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
+        require(agentInfo != null, "节点不存在");
+        //退出节点委托
+        Iterator<ConsensusDepositInfo> iterator = depositList.iterator();
+        while (iterator.hasNext()){
+            ConsensusDepositInfo depositInfo = iterator.next();
+            if(agentHash.equals(depositInfo.getAgentHash())){
+                this.withdraw(depositInfo);
+            }
+            iterator.remove();
+            withdrawAmount = withdrawAmount.add(depositInfo.getDeposit());
+        }
+        //清除委托节点
+        otherAgents.remove(agentHash);
+        return withdrawAmount;
+    }
+
     public BigInteger deposit(BigInteger availableAmount) {
         int size = otherAgents.size();
         if(size == 0) {

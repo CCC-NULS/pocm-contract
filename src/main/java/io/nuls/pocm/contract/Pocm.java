@@ -23,10 +23,7 @@
  */
 package io.nuls.pocm.contract;
 
-import io.nuls.contract.sdk.Address;
-import io.nuls.contract.sdk.Block;
-import io.nuls.contract.sdk.Contract;
-import io.nuls.contract.sdk.Msg;
+import io.nuls.contract.sdk.*;
 import io.nuls.contract.sdk.annotation.Payable;
 import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
@@ -124,6 +121,8 @@ public class Pocm extends Ownable implements Contract {
 
     private int lockedTokenDay;
 
+    private List<ConsensusAgentInfo> consensusAgentInfoList = new ArrayList<ConsensusAgentInfo>();
+
     /**
      * @param tokenAddress Token合约地址
      * @param cycleRewardTokenAmount 单周期奖励的Token数量
@@ -220,6 +219,19 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
         consensusManager.addOtherAgent(agentHash);
+        String[] agentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
+        consensusAgentInfoList.add(new ConsensusAgentInfo(agentHash, agentInfo[0], new BigInteger(agentInfo[2])));
+        emit(new AgentEvent(agentHash));
+    }
+
+    /**
+     * 删除节点信息
+     * @param agentHash 其他共识节点的hash
+     */
+    public void removeAgent(String agentHash){
+        onlyOwner();
+        require(openConsensus, "未开启共识功能");
+        consensusManager.removeAgent(agentHash);
         emit(new AgentEvent(agentHash));
     }
 

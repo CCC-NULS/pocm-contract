@@ -83,6 +83,11 @@ public class ConsensusManager {
         depositOthersManager.addOtherAgent(agentHash);
     }
 
+    public void removeAgent(String agentHash){
+        BigInteger depositAmount = depositOthersManager.removeAgent(agentHash);
+        availableAmount = availableAmount.add(depositAmount);
+    }
+
     public BigInteger otherDepositLockedAmount() {
         return depositOthersManager.otherDepositLockedAmount();
     }
