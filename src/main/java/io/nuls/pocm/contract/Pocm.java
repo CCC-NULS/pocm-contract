@@ -49,6 +49,9 @@ import static io.nuls.pocm.contract.util.PocmUtil.*;
  */
 public class Pocm extends Ownable implements Contract {
     private final BigInteger HLAVING = new BigInteger("2");
+    //1天=24*60*60秒
+    private final long TIMEPERDAY=86400;
+
     // 合约创建高度
     private final long createHeight;
     // 初始价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token（最大单位）
@@ -105,7 +108,7 @@ public class Pocm extends Ownable implements Contract {
     private int decimals;
 
     //token的总分配量
-    private BigInteger totalAllocation;
+    private BigInteger totalAllocation=BigInteger.ZERO;
 
     //已经分配的Token数量
     private BigInteger allocationAmount=BigInteger.ZERO;
@@ -119,6 +122,8 @@ public class Pocm extends Ownable implements Contract {
     //dapp的唯一识别码
     private String authorizationCode;
 
+    private int lockedTokenDay;
+
     /**
      * @param tokenAddress Token合约地址
      * @param cycleRewardTokenAmount 单周期奖励的Token数量
@@ -126,17 +131,19 @@ public class Pocm extends Ownable implements Contract {
      * @param minimumDepositNULS 最低抵押NULS数量
      * @param minimumLocked 锁定区块个数
      * @param openConsensus 是否开启合约共识
+     * @param lockedTokenDay 获取Token奖励的锁定天数
      * @param authorizationCode dapp的唯一识别码
      * @param rewardHalvingCycle 奖励减半周期（默认空，不减半）
      * @param maximumDepositAddressCount 最大参与抵押人数（默认空，不限制）
      */
     public Pocm(@Required String tokenAddress, @Required BigInteger cycleRewardTokenAmount, @Required int awardingCycle,
                 @Required BigInteger minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus,
-                String authorizationCode,String rewardHalvingCycle, String maximumDepositAddressCount) {
+                @Required int lockedTokenDay,String authorizationCode,String rewardHalvingCycle, String maximumDepositAddressCount) {
         tokenContractAddress = new Address(tokenAddress);
         require(tokenContractAddress.isContract(),"tokenAddress应该是合约地址");
         require(cycleRewardTokenAmount.compareTo(BigInteger.ZERO) > 0, "每个奖励周期的Token数量应该大于0");
         require(minimumDepositNULS.compareTo(BigInteger.ZERO) > 0, "最小抵押NULS数量应该大于0");
+        require(lockedTokenDay>=0,"Token的锁定天数应该大于等于0");
         this.decimals= Integer.parseInt(tokenContractAddress.callWithReturnValue("decimals","",null,BigInteger.ZERO));
         require(minimumLocked > 0, "最短锁定区块值应该大于0");
         require(awardingCycle > 0, "奖励发放周期应该大于0");
@@ -163,6 +170,7 @@ public class Pocm extends Ownable implements Contract {
         this.nextRewardHalvingHeight = this.createHeight + this.rewardHalvingCycle;
         this.currentPrice = toMinUit(cycleRewardTokenAmount,this.decimals);
         this.authorizationCode=authorizationCode;
+        this.lockedTokenDay=lockedTokenDay;
 
         name= tokenContractAddress.callWithReturnValue("name","",null,BigInteger.ZERO);
         symbol= tokenContractAddress.callWithReturnValue("symbol","",null,BigInteger.ZERO);
@@ -455,18 +463,29 @@ public class Pocm extends Ownable implements Contract {
     @View
     public String calcUnAllocationTokenAmount(){
         BigInteger result=BigInteger.ZERO;
-        if(allocationAmount.compareTo(totalAllocation)==0){
+        if(!isAllocationToken()){
             return result.toString();
         }
-        Iterator<DepositInfo> iter=depositUsers.values().iterator();
-        BigInteger unReceiveAwards=BigInteger.ZERO;
-        while (iter.hasNext()){
-            unReceiveAwards=unReceiveAwards.add(this.calcUnReceiceMining(iter.next(),null,0));
+        if(this.allocationAmount.compareTo(this.totalAllocation)==0){
+            return result.toString();
         }
-        result=this.totalAllocation.subtract(this.allocationAmount).subtract(unReceiveAwards);
-        if(result.compareTo(BigInteger.ZERO)<0){
-            result=BigInteger.ZERO;
+        if(depositUsers!=null && depositUsers.size()>0){
+            Iterator<DepositInfo> iter=depositUsers.values().iterator();
+            BigInteger unReceiveAwards=BigInteger.ZERO;
+            while (iter.hasNext()){
+                DepositInfo depositInfo=iter.next();
+                if(depositInfo!=null){
+                    unReceiveAwards=unReceiveAwards.add(this.calcUnReceiceMining(depositInfo,null,0));
+                }
+            }
+            result=this.totalAllocation.subtract(this.allocationAmount).subtract(unReceiveAwards);
+            if(result.compareTo(BigInteger.ZERO)<0){
+                result=BigInteger.ZERO;
+            }
+        }else{
+            result=this.totalAllocation;
         }
+
         return result.toString();
     }
 
@@ -634,16 +653,19 @@ public class Pocm extends Ownable implements Contract {
 
         Set<Map.Entry<String, BigInteger>> entrySet=mingResult.entrySet();
         Iterator<Map.Entry<String, BigInteger>> iterator =entrySet.iterator();
+        long currentTime=Block.timestamp();
+        String lockedTime=String.valueOf(currentTime+this.lockedTokenDay*this.TIMEPERDAY);
         while(iterator.hasNext()){
             Map.Entry<String, BigInteger> ming = iterator.next();
             BigInteger mingValue = ming.getValue();
             if(mingValue.compareTo(BigInteger.ZERO)>0){
                 //  user.transfer(mingValue);
-                String[][] args = new String[2][];
+                String[][] args = new String[3][];
                 args[0]=new String[]{ming.getKey()};
                 args[1]=new String[]{mingValue.toString()};
-                tokenContractAddress.call("transfer","",args,BigInteger.ZERO);
-               // allocationAmount=allocationAmount.add(mingValue);
+                args[2]=new String[]{lockedTime};
+                //tokenContractAddress.call("transfer","",args,BigInteger.ZERO);
+                tokenContractAddress.call("transferLocked","",args,BigInteger.ZERO);
             }
         }
 
@@ -1135,6 +1157,11 @@ public class Pocm extends Ownable implements Contract {
     @View
     public int maximumDepositAddressCount() {
         return this.maximumDepositAddressCount;
+    }
+
+    @View
+    public int getLockedDay(){
+        return this.lockedTokenDay;
     }
 
     /**
