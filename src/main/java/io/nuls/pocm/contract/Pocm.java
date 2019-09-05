@@ -123,6 +123,8 @@ public class Pocm extends Ownable implements Contract {
 
     private List<ConsensusAgentInfo> consensusAgentInfoList = new ArrayList<ConsensusAgentInfo>();
 
+    private Map<String, ConsensusAgentDepositInfo> agentDeposits =new HashMap<String, ConsensusAgentDepositInfo>();
+
     /**
      * @param tokenAddress Token合约地址
      * @param cycleRewardTokenAmount 单周期奖励的Token数量
@@ -219,8 +221,36 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
         String[] agentInfo = consensusManager.addOtherAgent(agentHash);
-        consensusAgentInfoList.add(new ConsensusAgentInfo(agentHash, agentInfo[0], new BigInteger(agentInfo[2])));
+        consensusAgentInfoList.add(new ConsensusAgentInfo(agentHash, agentInfo[0], new BigInteger(agentInfo[3])));
         emit(new AgentEvent(agentHash));
+
+        //将共识节点创建者的委托金额加入委托中，参与Token奖励的分配
+        String agentAddress=agentInfo[0];
+        BigInteger value=new BigInteger(agentInfo[3]);
+        long currentHeight = Block.number();
+        long depositNumber = NUMBER++;
+        ConsensusAgentDepositInfo agentDepositInfo=new ConsensusAgentDepositInfo(agentHash,agentAddress,depositNumber);
+
+        DepositInfo info = depositUsers.get(agentAddress);
+        if (info == null) {
+            info = new DepositInfo();
+            depositUsers.put(agentAddress, info);
+        }
+
+        DepositDetailInfo detailInfo = new DepositDetailInfo();
+        detailInfo.setDepositAmount(value);
+        detailInfo.setDepositHeight(currentHeight);
+        detailInfo.setMiningAddress(agentAddress);
+        detailInfo.setDepositNumber(depositNumber);
+        info.setDepositorAddress(agentAddress);
+        info.getDepositDetailInfos().put(depositNumber, detailInfo);
+        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value));
+        info.setDepositCount(info.getDepositCount() + 1);
+
+        //将抵押数加入队列中
+        this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
+        agentDeposits.put(agentHash,agentDepositInfo);
+
     }
 
     /**
@@ -232,6 +262,48 @@ public class Pocm extends Ownable implements Contract {
         require(openConsensus, "未开启共识功能");
         consensusManager.removeAgent(agentHash);
         emit(new AgentEvent(agentHash));
+
+        //1.共识节点的创建者先领取奖励
+        ConsensusAgentDepositInfo agentDepositInfo=agentDeposits.get(agentHash);
+        if(agentDepositInfo==null){
+            return;
+        }
+        String userAddress = agentDepositInfo.getDepositorAddress();
+        MiningInfo miningInfo = mingUsers.get(userAddress);
+        require(miningInfo != null, "没有该共识节点的创建者抵押挖矿的挖矿信息");
+        DepositInfo depositInfo = getDepositInfo(userAddress);
+        long number=agentDepositInfo.getDepositNumber();
+        if(number!=0){
+            //检查该抵押编号的记录是否存在
+            depositInfo.getDepositDetailInfoByNumber(number);
+        }
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,number);
+
+
+        //2.共识节点的创建者退出
+        DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfoByNumber(number);
+        long currentHeight = Block.number();
+        List<Long> depositNumbers =new ArrayList<Long>();
+        //删除挖矿信息
+        miningInfo = mingUsers.get(detailInfo.getMiningAddress());
+        miningInfo.removeMiningDetailInfoByNumber(number);
+        if (miningInfo.getMiningDetailInfos().size() == 0) {
+            mingUsers.remove(detailInfo.getMiningAddress());
+        }
+        depositInfo.removeDepositDetailInfoByNumber(number);
+        // 退押金
+        depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()));
+        //从队列中退出抵押金额
+        this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
+        depositNumbers.add(number);
+        if (depositInfo.getDepositDetailInfos().size() == 0) {
+            depositUsers.remove(userAddress);
+        }
+        agentDeposits.remove(agentHash);
+
+        emit(new CurrentMiningInfoEvent(mingInfosList));
+        emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
+
     }
 
     /**
