@@ -63,11 +63,12 @@ public class DepositOthersManager {
         return depositLockedAmount;
     }
 
-    public void addOtherAgent(String agentHash) {
+    public String[] addOtherAgent(String agentHash) {
         require(!otherAgents.containsKey(agentHash), "重复的共识节点hash");
         otherAgents.put(agentHash, new AgentInfo());
         Object agentInfo = Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
         require(agentInfo != null, "无效的共识节点hash");
+        return (String[]) agentInfo;
     }
 
     public BigInteger removeAgent(String agentHash) {

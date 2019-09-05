@@ -78,9 +78,9 @@ public class ConsensusManager {
         depositOthersManager = new DepositOthersManager();
     }
 
-    public void addOtherAgent(String agentHash) {
+    public String[] addOtherAgent(String agentHash) {
         require(enableDepositOthers, "未开启此功能");
-        depositOthersManager.addOtherAgent(agentHash);
+        return depositOthersManager.addOtherAgent(agentHash);
     }
 
     public void removeAgent(String agentHash){

@@ -218,8 +218,7 @@ public class Pocm extends Ownable implements Contract {
     public void addOtherAgent(String agentHash) {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
-        consensusManager.addOtherAgent(agentHash);
-        String[] agentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
+        String[] agentInfo = consensusManager.addOtherAgent(agentHash);
         consensusAgentInfoList.add(new ConsensusAgentInfo(agentHash, agentInfo[0], new BigInteger(agentInfo[2])));
         emit(new AgentEvent(agentHash));
     }
