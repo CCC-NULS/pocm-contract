@@ -307,10 +307,9 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
-     * 合约拥有者委托共识节点
+     * 手动把闲置的抵押金委托到共识节点
      */
-    public void depositConsensusManuallyByOwner() {
-        onlyOwner();
+    public void depositConsensusManually() {
         require(openConsensus, "未开启共识功能");
         consensusManager.depositManually();
     }
