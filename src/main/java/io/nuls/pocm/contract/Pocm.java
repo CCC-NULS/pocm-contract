@@ -180,7 +180,7 @@ public class Pocm extends Ownable implements Contract {
         if(openConsensus) {
             openConsensus();
         }
-        emit(new CreateContractEvent(tokenAddress,cycleRewardTokenAmount,awardingCycle, minimumDepositNULS,minimumLocked, openConsensus,authorizationCode,rewardHalvingCycle, maximumDepositAddressCount));
+        emit(new CreateContractEvent(tokenAddress,cycleRewardTokenAmount,awardingCycle, minimumDepositNULS,minimumLocked, openConsensus, lockedTokenDay, authorizationCode,rewardHalvingCycle, maximumDepositAddressCount));
     }
 
     @Override
