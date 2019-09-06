@@ -23,7 +23,10 @@
  */
 package io.nuls.pocm.contract;
 
-import io.nuls.contract.sdk.*;
+import io.nuls.contract.sdk.Address;
+import io.nuls.contract.sdk.Block;
+import io.nuls.contract.sdk.Contract;
+import io.nuls.contract.sdk.Msg;
 import io.nuls.contract.sdk.annotation.Payable;
 import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
