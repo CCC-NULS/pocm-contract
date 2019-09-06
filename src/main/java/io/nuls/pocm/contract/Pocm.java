@@ -251,6 +251,9 @@ public class Pocm extends Ownable implements Contract {
         this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
         agentDeposits.put(agentHash,agentDepositInfo);
 
+        //初始化挖矿信息
+        initMingInfo(currentHeight, agentAddress, agentAddress, depositNumber);
+
     }
 
     /**
