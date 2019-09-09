@@ -36,8 +36,10 @@ import java.math.BigInteger;
 public class PocmUtil {
 
     public final static BigInteger ONE_NULS = BigInteger.valueOf(100000000L);
-
-    public final static BigDecimal LOCKED_PERCENT= new BigDecimal("0.1");
+    //90%
+    public final static BigDecimal AVAILABLE_PERCENT= new BigDecimal("0.9");
+    //100%
+    public final static BigDecimal FULL_PERCENT= new BigDecimal("1");
 
     public static BigDecimal toNuls(BigInteger na) {
         return new BigDecimal(na).movePointLeft(8);

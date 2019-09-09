@@ -241,13 +241,13 @@ public class Pocm extends Ownable implements Contract {
         }
 
         DepositDetailInfo detailInfo = new DepositDetailInfo();
-        detailInfo.setDepositAmount(value);
+        detailInfo.setDepositAmount(value, FULL_PERCENT);
         detailInfo.setDepositHeight(currentHeight);
         detailInfo.setMiningAddress(agentAddress);
         detailInfo.setDepositNumber(depositNumber);
         info.setDepositorAddress(agentAddress);
         info.getDepositDetailInfos().put(depositNumber, detailInfo);
-        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value));
+        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),FULL_PERCENT);
         info.setDepositCount(info.getDepositCount() + 1);
 
         //将抵押数加入队列中
@@ -298,7 +298,7 @@ public class Pocm extends Ownable implements Contract {
         }
         depositInfo.removeDepositDetailInfoByNumber(number);
         // 退押金
-        depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()));
+        depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()),FULL_PERCENT);
         //从队列中退出抵押金额
         this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
         depositNumbers.add(number);
@@ -354,13 +354,13 @@ public class Pocm extends Ownable implements Contract {
         long depositNumber = NUMBER++;
 
         DepositDetailInfo detailInfo = new DepositDetailInfo();
-        detailInfo.setDepositAmount(value);
+        detailInfo.setDepositAmount(value,AVAILABLE_PERCENT);
         detailInfo.setDepositHeight(currentHeight);
         detailInfo.setMiningAddress(userStr);
         detailInfo.setDepositNumber(depositNumber);
         info.setDepositorAddress(userStr);
         info.getDepositDetailInfos().put(depositNumber, detailInfo);
-        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value));
+        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),AVAILABLE_PERCENT);
         info.setDepositCount(info.getDepositCount() + 1);
 
         //将抵押数加入队列中
@@ -399,13 +399,13 @@ public class Pocm extends Ownable implements Contract {
         long depositNumber = NUMBER++;
         long currentHeight = Block.number();
         DepositDetailInfo detailInfo = new DepositDetailInfo();
-        detailInfo.setDepositAmount(value);
+        detailInfo.setDepositAmount(value,AVAILABLE_PERCENT);
         detailInfo.setDepositHeight(currentHeight);
         detailInfo.setMiningAddress(miningAddress.toString());
         detailInfo.setDepositNumber(depositNumber);
         info.setDepositorAddress(userStr);
         info.getDepositDetailInfos().put(depositNumber, detailInfo);
-        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value));
+        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),AVAILABLE_PERCENT);
         info.setDepositCount(info.getDepositCount() + 1);
 
         //将抵押数加入队列中
@@ -469,7 +469,7 @@ public class Pocm extends Ownable implements Contract {
             // 退押金
             depositAvailableTotalAmount = detailInfo.getAvailableAmount();
             depositTotalAmount=detailInfo.getDepositAmount();
-            depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()));
+            depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()),AVAILABLE_PERCENT);
             depositInfo.setDepositCount(depositInfo.getDepositCount() - 1);
             //从队列中退出抵押金额
             this.quitDepositToMap(depositAvailableTotalAmount, currentHeight, detailInfo.getDepositHeight());

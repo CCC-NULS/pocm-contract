@@ -49,11 +49,11 @@ public class DepositInfo {
      * 设置抵押总金额的同时，计算锁定总金额和可用总金额
      * @param depositTotalAmount 抵押总金额
      */
-    public void setDepositTotalAmount(BigInteger depositTotalAmount) {
+    public void setDepositTotalAmount(BigInteger depositTotalAmount, BigDecimal percent) {
         this.depositTotalAmount = depositTotalAmount;
         BigDecimal bigDecimalValue =new BigDecimal(depositTotalAmount);
-        this.depositLockedTotalAmount = PocmUtil.LOCKED_PERCENT.multiply(bigDecimalValue).toBigInteger();
-        this.depositAvailableTotalAmount=this.depositTotalAmount.subtract(this.depositLockedTotalAmount);
+        this.depositAvailableTotalAmount = percent.multiply(bigDecimalValue).toBigInteger();
+        this.depositLockedTotalAmount=this.depositTotalAmount.subtract(this.depositAvailableTotalAmount);
     }
 
     public BigInteger getDepositAvailableTotalAmount() {

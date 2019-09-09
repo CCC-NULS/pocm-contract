@@ -48,11 +48,12 @@ public class DepositDetailInfo {
      * 设置抵押金额的同时，计算锁定金额和可用金额
      * @param depositAmount 抵押金额
      */
-    public void setDepositAmount(BigInteger depositAmount) {
+    public void setDepositAmount(BigInteger depositAmount , BigDecimal percent) {
         this.depositAmount = depositAmount;
         BigDecimal bigDecimalValue =new BigDecimal(depositAmount);
-        this.lockedAmount =PocmUtil.LOCKED_PERCENT.multiply(bigDecimalValue).toBigInteger();
-        this.availableAmount=this.depositAmount.subtract(this.lockedAmount);
+        this.availableAmount =percent.multiply(bigDecimalValue).toBigInteger();
+        this.lockedAmount=this.depositAmount.subtract(this.availableAmount);
+
     }
 
     public long getDepositHeight() {
