@@ -99,30 +99,11 @@ public class DepositOthersManager {
         }
         BigInteger actualDeposit = BigInteger.ZERO;
         String[] agentInfo;
-        String[] firstAgentInfo = null;
-        String firstAgentHash = null;
-        AgentInfo firstAgent = null;
-        // 选择一个可委托金额足够的共识节点
-        boolean allInActive = true;
-        int i = 0;
         Set<Map.Entry<String, AgentInfo>> entries = otherAgents.entrySet();
         for(Map.Entry<String, AgentInfo> entry : entries) {
             String agentHash = entry.getKey();
             AgentInfo agent = entry.getValue();
-            i++;
             agentInfo = (String[]) Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
-            if(i == 1) {
-                firstAgentHash = agentHash;
-                firstAgentInfo = agentInfo;
-                firstAgent = agent;
-            }
-            // 0-待共识 1-共识中
-            String status = agentInfo[9];
-            //emit(new ErrorEvent("status", status));
-            if(!ACTIVE_AGENT.equals(status) && size != 1) {
-                continue;
-            }
-            allInActive = false;
             // 合约节点已委托金额
             BigInteger totalDeposit = this.moreDeposits(agent, new BigInteger(agentInfo[4]));
             BigInteger currentAvailable = MAX_TOTAL_DEPOSIT.subtract(totalDeposit);
@@ -137,9 +118,6 @@ public class DepositOthersManager {
             }
         }
         // 当所有节点(超过1个)都未激活时，选第一个节点委托
-        if(allInActive) {
-            actualDeposit = this.depositAvailable(firstAgentHash, firstAgent, availableAmount, new BigInteger(firstAgentInfo[4]));
-        }
         return actualDeposit;
     }
 
