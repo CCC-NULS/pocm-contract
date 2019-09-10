@@ -433,14 +433,18 @@ public class Pocm extends Ownable implements Contract {
         Address user = Msg.sender();
         String userString = user.toString();
         DepositInfo depositInfo = getDepositInfo(userString);
-        // 发放奖励
-        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo, 0);
+
         BigInteger depositAvailableTotalAmount;
         BigInteger depositTotalAmount;
         MiningInfo miningInfo;
         List<Long> depositNumbers =new ArrayList<Long>();
+        List<CurrentMingInfo> mingInfosList;
+
         //表示退出全部的抵押
         if (depositNumber == 0) {
+            // 发放所有抵押的奖励
+            mingInfosList=this.receive(depositInfo, 0);
+
             long result = checkAllDepositLocked(depositInfo);
             require(result == -1, "挖矿的NULS没有全部解锁");
             depositAvailableTotalAmount = depositInfo.getDepositAvailableTotalAmount();
@@ -455,6 +459,9 @@ public class Pocm extends Ownable implements Contract {
             }
             depositInfo.clearDepositDetailInfos();
         } else {
+            // 发放指定抵押编号的奖励
+            mingInfosList=this.receive(depositInfo, depositNumber);
+
             //退出某一次抵押
             DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfoByNumber(depositNumber);
             long unLockedHeight = checkDepositLocked(detailInfo);
