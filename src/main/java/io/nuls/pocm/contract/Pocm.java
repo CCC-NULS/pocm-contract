@@ -827,8 +827,6 @@ public class Pocm extends Ownable implements Contract {
         //若指定了抵押编号，则只计算此抵押编号的奖励收益
         if(depositNumber!=0){
             DepositDetailInfo detailInfo = detailInfos.get(depositNumber);
-
-            BigInteger miningTmp = BigInteger.ZERO;
             MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
             MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
             if(mingDetailInfo.isRewardsEnd()){
@@ -841,7 +839,7 @@ public class Pocm extends Ownable implements Contract {
             if (nextStartMiningCycle <= currentRewardCycle) {
                 BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
                 BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-                miningTmp = miningTmp.add(availableDepositAmountNULS.multiply(sumPrice).toBigInteger());
+                BigInteger miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
                 //Token数量不够分配
                 if(!isAcceptDeposit){
@@ -886,7 +884,6 @@ public class Pocm extends Ownable implements Contract {
             //若未指定抵押编号，则只计算所有抵押的奖励收益
             for (Long key : detailInfos.keySet()) {
                 DepositDetailInfo detailInfo = detailInfos.get(key);
-                BigInteger miningTmp = BigInteger.ZERO;
                 MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
                 MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
                 int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
@@ -901,7 +898,7 @@ public class Pocm extends Ownable implements Contract {
 
                 BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
                 BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-                miningTmp = miningTmp.add(availableDepositAmountNULS.multiply(sumPrice).toBigInteger());
+                BigInteger miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
                 //Token数量不够分配
                 if(!isAcceptDeposit){
@@ -973,7 +970,6 @@ public class Pocm extends Ownable implements Contract {
             if(receiceAddress!=null && !detailInfo.getMiningAddress().equals(receiceAddress)){
                 continue;
             }
-            BigInteger miningTmp = BigInteger.ZERO;
             MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
             MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
             int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
@@ -983,7 +979,7 @@ public class Pocm extends Ownable implements Contract {
             }
             BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
             BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-            miningTmp = miningTmp.add(availableDepositAmountNULS.multiply(sumPrice).toBigInteger());
+            BigInteger miningTmp =availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
             //Token数量不够分配,按照抵押比例进行分配
             if(!isAcceptDeposit){
