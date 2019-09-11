@@ -24,6 +24,12 @@ public class MiningDetailInfo {
     //来源地址
     private String depositorAddress;
 
+    //领取奖励是否结束，当Token数量不足并且已经领取了属于自己的那部分之后，该字段标记为true，不能再领取奖励
+    private boolean rewardsEnd=false;
+
+    //当最后Token可分配的余额不足时，此字段记录该挖矿剩余可领取的奖励数额
+    private BigInteger canRewarsAmountWhenFinal=BigInteger.ZERO;
+
     public MiningDetailInfo(String miningAddress ,String depositorAddress,long depositNumber){
         this.receiverMiningAddress=miningAddress;
         this.depositorAddress=depositorAddress;
@@ -79,10 +85,27 @@ public class MiningDetailInfo {
         this.depositNumber = depositNumber;
     }
 
+    public boolean isRewardsEnd() {
+        return rewardsEnd;
+    }
+
+    public void setRewardsEnd(boolean rewardsEnd) {
+        this.rewardsEnd = rewardsEnd;
+    }
+
+    public BigInteger getCanRewarsAmountWhenFinal() {
+        return canRewarsAmountWhenFinal;
+    }
+
+    public void setCanRewarsAmountWhenFinal(BigInteger canRewarsAmountWhenFinal) {
+        this.canRewarsAmountWhenFinal = canRewarsAmountWhenFinal;
+    }
+
     @Override
     public String toString(){
         return "{depositNumber:"+depositNumber+",miningAmount:"+miningAmount.toString()+",receiverMiningAddress:"+receiverMiningAddress
-                +",miningCount:"+miningCount+",nextStartMiningCycle:"+nextStartMiningCycle+",depositorAddress:"+depositorAddress+"}";
+                +",miningCount:"+miningCount+",nextStartMiningCycle:"+nextStartMiningCycle
+                +",depositorAddress:"+depositorAddress+",rewardsEnd:"+rewardsEnd+",canRewarsAmountWhenFinal:"+canRewarsAmountWhenFinal+"}";
     }
 
 }
