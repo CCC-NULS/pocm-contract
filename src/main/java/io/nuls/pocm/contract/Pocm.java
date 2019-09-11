@@ -247,7 +247,7 @@ public class Pocm extends Ownable implements Contract {
             require(whetherAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再添加新的共识节点");
         }
 
-        BigInteger rewardsAmount= this.allocationAmount.add(this.unRewardsAmount);
+        //BigInteger rewardsAmount= this.allocationAmount.add(this.unRewardsAmount);
 
         String agentAddress=agentInfo[0];
         BigInteger value=new BigInteger(agentInfo[3]);
