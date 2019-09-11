@@ -108,7 +108,6 @@ public class PocmUtil {
             if(chr<48||chr>57){
                 return false;
             }
-
         }
         return true;
     }
@@ -116,6 +115,40 @@ public class PocmUtil {
     public static boolean canConvertNumeric(String str,String maxValue){
         String trimStr=str.trim();
         if(isNumeric(trimStr)){
+            if(trimStr.length()<maxValue.length()){
+                return true;
+            }else if(trimStr.length()==maxValue.length()){
+                return trimStr.compareTo(maxValue)<=0;
+            }else{
+                return false;
+            }
+        }else{
+            return false;
+        }
+    }
+
+    private static boolean isNumericForDecimal(String str){
+        int count=0;
+        for(int i=0;i<str.length();i++){
+            int chr=str.charAt(i);
+            if(chr<48||chr>57){
+                if(chr==46){
+                    count++;
+                }else{
+                    return false;
+                }
+            }
+        }
+
+        if(count>1){
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean canConvertNumericForDecimal(String str,String maxValue){
+        String trimStr=str.trim();
+        if(isNumericForDecimal(trimStr)){
             if(trimStr.length()<maxValue.length()){
                 return true;
             }else if(trimStr.length()==maxValue.length()){
