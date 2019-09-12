@@ -140,6 +140,9 @@ public class Pocm extends Ownable implements Contract {
     //当检查到Token可分配的余额不足时，记录分配比例的一部分值 =unRewardsAmount/totalDepositForEnd
     private BigDecimal allocationRatio=BigDecimal.ONE;
 
+    //第一笔抵押的高度，在计算未领取奖励时使用，若计算时的高度与第一笔抵押的高度相差小于2则不计算奖励
+    private long firstDepositHeight=0;
+
     /**
      * @param tokenAddress Token合约地址
      * @param cycleRewardTokenAmount 单周期奖励的Token数量
@@ -274,7 +277,10 @@ public class Pocm extends Ownable implements Contract {
         //将抵押数加入队列中
         this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
         agentDeposits.put(agentHash,agentDepositInfo);
-
+        //记录第一笔抵押的高度
+        if(firstDepositHeight==0){
+            firstDepositHeight=currentHeight;
+        }
         //初始化挖矿信息
         initMingInfo(currentHeight, agentAddress, agentAddress, depositNumber);
 
@@ -387,6 +393,10 @@ public class Pocm extends Ownable implements Contract {
         //将抵押数加入队列中
         this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
 
+        //记录第一笔抵押的高度
+        if(firstDepositHeight==0){
+            firstDepositHeight=currentHeight;
+        }
 
         //初始化挖矿信息
         initMingInfo(currentHeight, userStr, userStr, depositNumber);
@@ -431,6 +441,11 @@ public class Pocm extends Ownable implements Contract {
 
         //将抵押数加入队列中
         this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
+
+        //记录第一笔抵押的高度
+        if(firstDepositHeight==0){
+            firstDepositHeight=currentHeight;
+        }
 
         //初始化挖矿信息
         initMingInfo(currentHeight, miningAddress.toString(), userStr, depositNumber);
@@ -957,6 +972,12 @@ public class Pocm extends Ownable implements Contract {
         BigInteger mining = BigInteger.ZERO;
         long currentHeight = Block.number();
         int currentRewardCycle = this.calcRewardCycle(currentHeight);
+        int firstRewardCycle = this.calcRewardCycle(firstDepositHeight);
+        if(currentRewardCycle-firstRewardCycle<2){
+            //若距离第一笔抵押还未过2个奖励周期，则没有奖励可以领取，直接返回0
+            return mining;
+        }
+
         //将上一个奖励周期的总抵押数更新至当前奖励周期的总抵押数
         this.moveLastDepositToCurrentCycle(currentHeight);
         Map<Long, DepositDetailInfo> detailInfos = depositInfo.getDepositDetailInfos();
@@ -1104,10 +1125,9 @@ public class Pocm extends Ownable implements Contract {
         //此时再检查是否当前高度的奖励周期在队列中
         if (!totalDepositIndex.containsKey(currentCycle)) {
             RewardCycleInfo cycleInfo = new RewardCycleInfo();
-            RewardCycleInfo cycleInfoTmp;
             if (totalDepositList.size() > 0) {
                 //取队列中最后一个奖励周期的信息
-                cycleInfoTmp = totalDepositList.get(totalDepositList.size() - 1);
+                RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositList.size() - 1);
                 cycleInfo.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount());
                 cycleInfo.setDifferCycleValue(currentCycle - cycleInfoTmp.getRewardingCylce());
                 cycleInfo.setCurrentPrice(this.currentPrice);
