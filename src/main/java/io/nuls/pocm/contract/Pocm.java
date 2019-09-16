@@ -130,8 +130,6 @@ public class Pocm extends Ownable implements Contract {
 
     private int  lockedTokenDay;
 
-    private List<ConsensusAgentInfo> consensusAgentInfoList = new ArrayList<ConsensusAgentInfo>();
-
     private Map<String, ConsensusAgentDepositInfo> agentDeposits =new HashMap<String, ConsensusAgentDepositInfo>();
 
     //当检查到Token可分配的余额不足时，记录此时的总抵押数，用于后面按比例分配
@@ -240,11 +238,9 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
         String[] agentInfo = consensusManager.addOtherAgent(agentHash);
-        consensusAgentInfoList.add(new ConsensusAgentInfo(agentHash, agentInfo[0], new BigInteger(agentInfo[3])));
         emit(new AgentEvent(agentHash));
 
         //将共识节点创建者的委托金额加入委托中，参与Token奖励的分配
-
         //总Token额度大于零，表示已经为此POCM分配了Token，则要检查可领取的Token数量是否足够，若为0表示还没有分配
         if(totalAllocation.compareTo(BigInteger.ZERO)>0){
             require(whetherAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再添加新的共识节点");
@@ -252,8 +248,8 @@ public class Pocm extends Ownable implements Contract {
 
         //BigInteger rewardsAmount= this.allocationAmount.add(this.unRewardsAmount);
 
-        String agentAddress=agentInfo[0];
-        BigInteger value=new BigInteger(agentInfo[3]);
+        String agentAddress = agentInfo[0];
+        BigInteger value = new BigInteger(agentInfo[3]);
         long currentHeight = Block.number();
         long depositNumber = NUMBER++;
         ConsensusAgentDepositInfo agentDepositInfo=new ConsensusAgentDepositInfo(agentHash,agentAddress,depositNumber);
@@ -278,8 +274,8 @@ public class Pocm extends Ownable implements Contract {
         this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
         agentDeposits.put(agentHash,agentDepositInfo);
         //记录第一笔抵押的高度
-        if(firstDepositHeight==0){
-            firstDepositHeight=currentHeight;
+        if(firstDepositHeight == 0){
+            firstDepositHeight = currentHeight;
         }
         //初始化挖矿信息
         initMingInfo(currentHeight, agentAddress, agentAddress, depositNumber);
