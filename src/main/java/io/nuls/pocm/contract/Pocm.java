@@ -294,7 +294,7 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
         consensusManager.removeAgent(agentHash);
-        emit(new AgentEvent(agentHash));
+        emit(new RemoveAgentEvent(agentHash));
 
         //1.共识节点的创建者先领取奖励
         ConsensusAgentDepositInfo agentDepositInfo=agentDeposits.get(agentHash);
