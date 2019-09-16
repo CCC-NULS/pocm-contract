@@ -1464,13 +1464,6 @@ public class Pocm extends Ownable implements Contract {
     }
 
     @View
-    public String infoForTest(){
-        String result=this.isAcceptDeposit+" ---- "+this.allocationRatio.toPlainString()+" = "+this.unRewardsAmount.toString() +"/"+this.totalDepositForEnd.toPlainString() +" , "+totalAllocation.toString() +" , "+ allocationAmount.toString();
-        whetherAcceptDeposit();
-        return  result=result+" ||||||   "+this.isAcceptDeposit+" ---- "+this.allocationRatio.toPlainString()+" = "+this.unRewardsAmount.toString() +"/"+this.totalDepositForEnd.toPlainString()+" , "+totalAllocation.toString() +" , "+ allocationAmount.toString();
-    }
-
-    @View
     public String name() {
         return name;
     }
