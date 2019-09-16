@@ -88,6 +88,8 @@ public class DepositOthersManager {
             if(agentHash.equals(depositInfo.getAgentHash())){
                 if(isEnabled){
                     this.withdraw(depositInfo);
+                }else{
+                    depositLockedAmount = depositLockedAmount.subtract(depositInfo.getDeposit());
                 }
                 iterator.remove();
                 withdrawAmount = withdrawAmount.add(depositInfo.getDeposit());
