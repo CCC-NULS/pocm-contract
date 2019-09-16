@@ -531,14 +531,6 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
-     * 注销节点
-     * Logout node
-     */
-    public void stopAgent(String agentHash) {
-        consensusManager.stopAgent(agentHash);
-    }
-
-    /**
      * 领取奖励,领取为自己抵押挖矿的Token
      * @param depositNumber 抵押编号，若为0表示领取所有抵押交易的奖励
      */
