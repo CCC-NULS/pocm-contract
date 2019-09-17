@@ -60,6 +60,14 @@ public class DepositOthersManager {
         return otherAgents.size();
     }
 
+    public Set<String> getAgents() {
+        int size = otherAgents.size();
+        if(size == 0) {
+            return null;
+        }
+        return otherAgents.keySet();
+    }
+
     public BigInteger otherDepositLockedAmount() {
         return depositLockedAmount;
     }

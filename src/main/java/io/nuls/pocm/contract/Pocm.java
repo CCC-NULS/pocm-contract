@@ -23,10 +23,7 @@
  */
 package io.nuls.pocm.contract;
 
-import io.nuls.contract.sdk.Address;
-import io.nuls.contract.sdk.Block;
-import io.nuls.contract.sdk.Contract;
-import io.nuls.contract.sdk.Msg;
+import io.nuls.contract.sdk.*;
 import io.nuls.contract.sdk.annotation.Payable;
 import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
@@ -1349,6 +1346,19 @@ public class Pocm extends Ownable implements Contract {
     public String ownerAvailableConsensusAward() {
         require(openConsensus, "未开启共识功能");
         return consensusManager.getAvailableConsensusReward().toString();
+    }
+
+    /**
+     * 查询共识节点列表
+     */
+    @View
+    public String agents() {
+        require(openConsensus, "未开启共识功能");
+        Set<String> agents = consensusManager.getAgents();
+        if(agents != null) {
+            return Utils.obj2Json(agents);
+        }
+        return "[]";
     }
 
     /**

@@ -29,6 +29,7 @@ import io.nuls.pocm.contract.manager.deposit.DepositOthersManager;
 import io.nuls.pocm.contract.model.ConsensusAwardInfo;
 
 import java.math.BigInteger;
+import java.util.Set;
 
 import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
@@ -116,11 +117,16 @@ public class ConsensusManager {
     public void depositManually() {
         BigInteger amount = availableAmount;
         require(amount.compareTo(MIN_JOIN_DEPOSIT) >= 0, "可用金额不足以委托节点");
+        require(depositOthersManager.otherAgentsSize() > 0, "没有可委托的共识节点");
         /**
          * 委托其他节点
          */
         BigInteger actualDeposit = depositOthersManager.deposit(availableAmount);
         availableAmount = availableAmount.subtract(actualDeposit);
+    }
+
+    public Set<String> getAgents() {
+        return depositOthersManager.getAgents();
     }
 
     /**
