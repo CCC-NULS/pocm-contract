@@ -117,11 +117,12 @@ public class ConsensusManager {
     public void depositManually() {
         BigInteger amount = availableAmount;
         require(amount.compareTo(MIN_JOIN_DEPOSIT) >= 0, "可用金额不足以委托节点");
-        require(depositOthersManager.otherAgentsSize() > 0, "没有可委托的共识节点");
+        require(depositOthersManager.otherAgentsSize() > 0, "没有添加可委托的共识节点[0]");
         /**
          * 委托其他节点
          */
         BigInteger actualDeposit = depositOthersManager.deposit(availableAmount);
+        require(actualDeposit.compareTo(BigInteger.ZERO) > 0, "没有可委托的共识节点[1]");
         availableAmount = availableAmount.subtract(actualDeposit);
     }
 

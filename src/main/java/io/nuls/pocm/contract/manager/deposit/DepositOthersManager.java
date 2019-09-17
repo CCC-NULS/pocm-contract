@@ -24,14 +24,12 @@
 package io.nuls.pocm.contract.manager.deposit;
 
 import io.nuls.contract.sdk.Utils;
-import io.nuls.pocm.contract.event.ErrorEvent;
 import io.nuls.pocm.contract.model.AgentInfo;
 import io.nuls.pocm.contract.model.ConsensusDepositInfo;
 
 import java.math.BigInteger;
 import java.util.*;
 
-import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.manager.ConsensusManager.MAX_TOTAL_DEPOSIT;
 import static io.nuls.pocm.contract.manager.ConsensusManager.MIN_JOIN_DEPOSIT;
@@ -196,7 +194,6 @@ public class DepositOthersManager {
 
 
     private String deposit(String agentHash, BigInteger depositNa, AgentInfo agent) {
-        emit(new ErrorEvent("委托金额", depositNa.toString()));
         String[] args = new String[]{agentHash, depositNa.toString()};
         String txHash = (String) Utils.invokeExternalCmd("cs_contractDeposit", args);
         this.orderlyAdditionToDepositList(new ConsensusDepositInfo(agentHash, txHash, depositNa));
