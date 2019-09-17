@@ -50,10 +50,7 @@ import static io.nuls.pocm.contract.util.PocmUtil.*;
 public class Pocm extends Ownable implements Contract {
     private final BigInteger HLAVING = new BigInteger("2");
     //1天=24*60*60秒
-    //private final long TIMEPERDAY=86400;
-
-    //测试使用
-    private final long TIMEPERDAY=1;
+    private final long TIMEPERDAY=86400;
 
     // 合约创建高度
     private final long createHeight;
