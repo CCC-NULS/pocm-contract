@@ -524,6 +524,39 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
+     * 放弃抵押，不要奖励
+     */
+    public void giveUp() {
+        long currentHeight = Block.number();
+
+        Address user = Msg.sender();
+        String userString = user.toString();
+        DepositInfo depositInfo = getDepositInfo(userString);
+
+        List<Long> depositNumbers =new ArrayList<Long>();
+
+        BigInteger depositAvailableTotalAmount = depositInfo.getDepositAvailableTotalAmount();
+        BigInteger depositTotalAmount=depositInfo.getDepositTotalAmount();
+        Map<Long, DepositDetailInfo> depositDetailInfos = depositInfo.getDepositDetailInfos();
+        delMingInfo(depositDetailInfos);
+        //从队列中退出抵押金额
+        for (Long key : depositDetailInfos.keySet()) {
+            DepositDetailInfo detailInfo = depositDetailInfos.get(key);
+            this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
+            depositNumbers.add(key);
+        }
+        depositInfo.clearDepositDetailInfos();
+        totalDepositAddressCount -= 1;
+        depositUsers.remove(userString);
+
+        boolean isEnoughBalance = totalDepositManager.subtract(depositAvailableTotalAmount);
+        require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + depositAvailableTotalAmount);
+
+        //emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
+        user.transfer(depositTotalAmount);
+    }
+
+    /**
      * 领取奖励,领取为自己抵押挖矿的Token
      * @param depositNumber 抵押编号，若为0表示领取所有抵押交易的奖励
      */
