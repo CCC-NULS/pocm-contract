@@ -552,7 +552,7 @@ public class Pocm extends Ownable implements Contract {
         boolean isEnoughBalance = totalDepositManager.subtract(depositAvailableTotalAmount);
         require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + depositAvailableTotalAmount);
 
-        //emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
+        emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
         user.transfer(depositTotalAmount);
     }
 
