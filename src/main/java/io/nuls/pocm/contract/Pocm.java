@@ -55,7 +55,7 @@ public class Pocm extends Ownable implements Contract {
     // 合约创建高度
     private final long createHeight;
     // 初始价格，每个周期奖励可以奖励的Token数量X，分配方式是：每个奖励周期所有参与的NULS抵押数平分这X个Token（最大单位）
-    private BigInteger initialPrice;
+    private BigDecimal initialPrice;
 
     // 奖励发放周期（参数类型为数字，每过XXXX块发放一次）
     private int awardingCycle;
@@ -150,16 +150,20 @@ public class Pocm extends Ownable implements Contract {
      * @param rewardHalvingCycle 奖励减半周期（默认空，不减半）
      * @param maximumDepositAddressCount 最大参与抵押人数（默认空，不限制）
      */
-    public Pocm(@Required String tokenAddress, @Required BigInteger cycleRewardTokenAmount, @Required int awardingCycle,
+    public Pocm(@Required String tokenAddress, @Required BigDecimal  cycleRewardTokenAmount, @Required int awardingCycle,
                 @Required BigInteger minimumDepositNULS, @Required int minimumLocked, @Required boolean openConsensus,
                 @Required int lockedTokenDay,String authorizationCode,String rewardHalvingCycle, String maximumDepositAddressCount) {
         tokenContractAddress = new Address(tokenAddress);
         require(tokenContractAddress.isContract(),"tokenAddress应该是合约地址");
-        require(cycleRewardTokenAmount.compareTo(BigInteger.ZERO) > 0, "每个奖励周期的Token数量应该大于0");
+        require(cycleRewardTokenAmount.compareTo(BigDecimal.ZERO) > 0, "每个奖励周期的Token数量应该大于0");
+
         require(minimumDepositNULS.compareTo(BigInteger.ZERO) > 0, "最小抵押NULS数量应该大于0");
         require(lockedTokenDay>=0,"Token的锁定天数应该大于等于0");
 
         this.decimals= Integer.parseInt(tokenContractAddress.callWithReturnValue("decimals","",null,BigInteger.ZERO));
+
+        require(checkMaximumDecimals(cycleRewardTokenAmount, this.decimals), "每个奖励周期的Token数量最多支持" + decimals + "位小数");
+
         require(minimumLocked > 0, "最短锁定区块值应该大于0");
         require(awardingCycle > 0, "奖励发放周期应该大于0");
         int rewardHalvingCycleForInt = 0;
@@ -1287,7 +1291,7 @@ public class Pocm extends Ownable implements Contract {
             }
             return toMaxUit(cycleInfoTmp.getCurrentPrice().multiply(BigInteger.TEN.pow(8)).divide(intAmount),this.decimals).toPlainString()+ " " + name() + "/NULS .";
         } else {
-            return initialPrice.toString() + " " + name() + "/ x NULS .";
+            return initialPrice.toPlainString() + " " + name() + "/ x NULS .";
         }
     }
 
@@ -1296,7 +1300,7 @@ public class Pocm extends Ownable implements Contract {
      */
     @View
     public String initialCycleRewardTokenAmount() {
-        return initialPrice.toString() + " " + name() + "/ x NULS";
+        return initialPrice.toPlainString() + " " + name() + "/ x NULS";
     }
 
     @View
@@ -1447,6 +1451,22 @@ public class Pocm extends Ownable implements Contract {
     public String getTotalAllocation(){
         this.isAllocationToken();
        return totalAllocation.toString();
+    }
+
+    /**
+     * 单价的精度不能超过定义的精度
+     *
+     * @param price    单价
+     * @param decimals 精度
+     * @return
+     */
+    private static boolean checkMaximumDecimals(BigDecimal price, int decimals) {
+        BigInteger a = price.movePointRight(decimals).toBigInteger().multiply(BigInteger.TEN);
+        BigInteger b = price.movePointRight(decimals + 1).toBigInteger();
+        if (a.compareTo(b) != 0) {
+            return false;
+        }
+        return true;
     }
 
 

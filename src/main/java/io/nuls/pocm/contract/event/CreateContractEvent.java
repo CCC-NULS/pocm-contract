@@ -7,7 +7,7 @@ import java.math.BigInteger;
 
 public class CreateContractEvent implements Event {
     private String tokenAddress;
-    private BigInteger cycleRewardTokenAmount;
+    private BigDecimal cycleRewardTokenAmount;
     private int awardingCycle;
     private BigInteger minimumDepositNULS;
     private int minimumLocked;
@@ -17,7 +17,7 @@ public class CreateContractEvent implements Event {
     private String rewardHalvingCycle;
     private String maximumDepositAddressCount;
 
-    public CreateContractEvent(String tokenAddress, BigInteger cycleRewardTokenAmount, int awardingCycle,
+    public CreateContractEvent(String tokenAddress, BigDecimal cycleRewardTokenAmount, int awardingCycle,
                                BigInteger minimumDepositNULS, int minimumLocked, boolean openConsensus, int lockedTokenDay,
                                String authorizationCode, String rewardHalvingCycle, String maximumDepositAddressCount){
         this.tokenAddress=tokenAddress;

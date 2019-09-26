@@ -49,8 +49,8 @@ public class PocmUtil {
         return nuls.scaleByPowerOfTen(8).toBigInteger();
     }
 
-    public static BigInteger toMinUit(BigInteger value,int decimals) {
-        return value.multiply(BigInteger.TEN.pow(decimals));
+    public static BigInteger toMinUit(BigDecimal value,int decimals) {
+        return value.scaleByPowerOfTen(decimals).toBigInteger();
     }
 
     public static BigDecimal toMaxUit(BigInteger value,int decimals) {
