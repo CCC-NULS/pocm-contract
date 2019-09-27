@@ -876,7 +876,7 @@ public class Pocm extends Ownable implements Contract {
                     miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
                     //Token数量不够分配
-                    if(miningTmp.add(this.allocationAmount).compareTo(this.totalAllocation)>0){
+                    if(miningTmp.add(this.allocationAmount).compareTo(this.totalAllocation)>=0){
                         this.isAcceptDeposit=false;
                         miningTmp=this.totalAllocation.subtract(this.allocationAmount);
                     }
@@ -944,7 +944,7 @@ public class Pocm extends Ownable implements Contract {
                     BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
                     miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
                     //Token数量不够分配
-                    if(miningSum.add(miningTmp).compareTo(this.totalAllocation)>0){
+                    if(miningSum.add(miningTmp).compareTo(this.totalAllocation)>=0){
                         this.isAcceptDeposit=false;
                         miningTmp=this.totalAllocation.subtract(miningSum);
                     }
