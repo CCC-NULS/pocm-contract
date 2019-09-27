@@ -82,7 +82,7 @@ public class Pocm extends Ownable implements Contract {
     //每个奖励周期的抵押金额索引，k-v：奖励周期-List序号
     private Map<Integer, Integer> totalDepositIndex = new LinkedHashMap<Integer, Integer>();
     //抵押金额列表，与索引表联合使用
-    private List<RewardCycleInfo> totalDepositList = new LinkedList<RewardCycleInfo>();
+    private List<RewardCycleInfo> totalDepositList = new ArrayList<RewardCycleInfo>();
     //上一次抵押数量有变动的奖励周期
     private int lastCalcCycle = 0;
 
@@ -128,12 +128,6 @@ public class Pocm extends Ownable implements Contract {
     private int  lockedTokenDay;
 
     private Map<String, ConsensusAgentDepositInfo> agentDeposits =new HashMap<String, ConsensusAgentDepositInfo>();
-
-    //当检查到Token可分配的余额不足时，记录此时的总抵押数，用于后面按比例分配
-    private BigDecimal totalDepositForEnd=BigDecimal.ZERO;
-
-    //当检查到Token可分配的余额不足时，记录分配比例的一部分值 =unRewardsAmount/totalDepositForEnd
-    private BigDecimal allocationRatio=BigDecimal.ONE;
 
     //第一笔抵押的高度，在计算未领取奖励时使用，若计算时的高度与第一笔抵押的高度相差小于2则不计算奖励
     private long firstDepositHeight=0;
@@ -243,9 +237,9 @@ public class Pocm extends Ownable implements Contract {
 
         //将共识节点创建者的委托金额加入委托中，参与Token奖励的分配
         //总Token额度大于零，表示已经为此POCM分配了Token，则要检查可领取的Token数量是否足够，若为0表示还没有分配
-        if(totalAllocation.compareTo(BigInteger.ZERO)>0){
-            require(whetherAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再添加新的共识节点");
-        }
+       // if(totalAllocation.compareTo(BigInteger.ZERO)>0){
+       //     require(whetherAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再添加新的共识节点");
+       // }
 
         //BigInteger rewardsAmount= this.allocationAmount.add(this.unRewardsAmount);
 
@@ -361,7 +355,7 @@ public class Pocm extends Ownable implements Contract {
     @Payable
     public void depositForOwn() {
         require(isAllocationToken(),"此POCM合约未预分配Token,暂不接受抵押");
-        require(whetherAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
+        require(isAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
         String userStr = Msg.sender().toString();
         DepositInfo info = depositUsers.get(userStr);
         if (info == null) {
@@ -410,7 +404,7 @@ public class Pocm extends Ownable implements Contract {
     @Payable
     public void depositForOther(@Required Address miningAddress) {
         require(isAllocationToken(),"此POCM合约未预分配Token,暂不接受抵押");
-        require(whetherAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
+        require(isAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
         String userStr = Msg.sender().toString();
         DepositInfo info = depositUsers.get(userStr);
         if (info == null) {
@@ -669,7 +663,7 @@ public class Pocm extends Ownable implements Contract {
             depositInfo.getDepositDetailInfoByNumber(number);
         }
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
-        this.whetherAcceptDeposit();
+       // this.whetherAcceptDeposit();
 
         BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,null,number);
         return unReceiveAwards.toString();
@@ -684,7 +678,7 @@ public class Pocm extends Ownable implements Contract {
         String address =depositorAddress.toString();
         DepositInfo depositInfo = getDepositInfo(address);
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
-        this.whetherAcceptDeposit();
+       // this.whetherAcceptDeposit();
         BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,address,0);
         return unReceiveAwards.toString();
     }
@@ -703,7 +697,7 @@ public class Pocm extends Ownable implements Contract {
         require(miningInfo != null, "没有替" + address + "用户抵押挖矿的挖矿信息");
         Map<Long, MiningDetailInfo> detailInfos = miningInfo.getMiningDetailInfos();
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
-        this.whetherAcceptDeposit();
+        //this.whetherAcceptDeposit();
 
         for (Long key : detailInfos.keySet()) {
             MiningDetailInfo detailInfo = detailInfos.get(key);
@@ -818,7 +812,7 @@ public class Pocm extends Ownable implements Contract {
         }
 
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
-        this.whetherAcceptDeposit();
+        //this.whetherAcceptDeposit();
 
         // 奖励计算, 计算每次挖矿的高度是否已达到奖励减半周期的范围，若达到，则当次奖励减半，以此类推
         List<CurrentMingInfo> mingInfosList = this.calcMining(depositInfo, mingResult,depositNumber);
@@ -866,19 +860,29 @@ public class Pocm extends Ownable implements Contract {
             DepositDetailInfo detailInfo = detailInfos.get(depositNumber);
             MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
             MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
-            if(mingDetailInfo.isRewardsEnd()){
+/*            if(mingDetailInfo.isRewardsEnd()){
                 //表示该抵押已经领取过最后一笔奖励,不能再领取
                 return mingInfosList;
-            }
+            }*/
 
             int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
             //说明未到领取奖励的高度
             if (nextStartMiningCycle <= currentRewardCycle) {
-                BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
-                BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-                BigInteger miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
+                BigInteger miningTmp =BigInteger.ZERO;
+                //已经分配完毕
+                if(this.isAcceptDeposit){
+                    BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
+                    BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
+                    miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
-                //Token数量不够分配
+                    //Token数量不够分配
+                    if(miningTmp.add(this.allocationAmount).compareTo(this.totalAllocation)>0){
+                        this.isAcceptDeposit=false;
+                        miningTmp=this.totalAllocation.subtract(this.allocationAmount);
+                    }
+                }
+
+/*
                 if(!isAcceptDeposit){
                     //在余额不足的情况下，已经领取过一部分
                     if(mingDetailInfo.getCanRewarsAmountWhenFinal().compareTo(BigInteger.ZERO)>0){
@@ -899,7 +903,7 @@ public class Pocm extends Ownable implements Contract {
                             mingDetailInfo.setCanRewarsAmountWhenFinal(canRewardsamount.subtract(miningTmp));
                         }
                     }
-                }
+                }*/
 
                 mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
                 mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
@@ -918,6 +922,7 @@ public class Pocm extends Ownable implements Contract {
                 mingInfosList.add(currentMingInfo);
             }
         }else{
+            BigInteger miningSum=this.allocationAmount;
             //若未指定抵押编号，则只计算所有抵押的奖励收益
             for (Long key : detailInfos.keySet()) {
                 DepositDetailInfo detailInfo = detailInfos.get(key);
@@ -928,16 +933,26 @@ public class Pocm extends Ownable implements Contract {
                 if (nextStartMiningCycle > currentRewardCycle) {
                     continue;
                 }
-                if(mingDetailInfo.isRewardsEnd()){
+/*                if(mingDetailInfo.isRewardsEnd()){
                     //表示该抵押已经领取过最后一笔奖励,不能再领取
                     continue;
+                }*/
+                BigInteger miningTmp =BigInteger.ZERO;
+                //已经分配完毕
+                if(this.isAcceptDeposit){
+                    BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
+                    BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
+                    miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
+                    //Token数量不够分配
+                    if(miningSum.add(miningTmp).compareTo(this.totalAllocation)>0){
+                        this.isAcceptDeposit=false;
+                        miningTmp=this.totalAllocation.subtract(miningSum);
+                    }
+                    miningSum=miningSum.add(miningTmp);
                 }
 
-                BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
-                BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-                BigInteger miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
-                //Token数量不够分配
+/*                //Token数量不够分配
                 if(!isAcceptDeposit){
                     //在余额不足的情况下，已经领取过一部分
                     if(mingDetailInfo.getCanRewarsAmountWhenFinal().compareTo(BigInteger.ZERO)>0){
@@ -958,7 +973,7 @@ public class Pocm extends Ownable implements Contract {
                             mingDetailInfo.setCanRewarsAmountWhenFinal(canRewardsamount.subtract(miningTmp));
                         }
                     }
-                }
+                }*/
 
                 mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
                 mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
@@ -1025,17 +1040,15 @@ public class Pocm extends Ownable implements Contract {
             BigInteger miningTmp =availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
             //Token数量不够分配,按照抵押比例进行分配
-            if(!isAcceptDeposit){
+ /*           if(!isAcceptDeposit){
                 BigInteger canRewardsamount=this.allocationRatio.multiply(toNuls(detailInfo.getAvailableAmount())).toBigInteger();
                 if(canRewardsamount.compareTo(miningTmp)<=0){
                     miningTmp=canRewardsamount;
                 }
-            }
+            }*/
 
             mining = mining.add(miningTmp);
         }
-
-
         return mining;
     }
 
@@ -1443,6 +1456,13 @@ public class Pocm extends Ownable implements Contract {
         return isGetTotal;
     }
 
+    /**
+     * 大致检查是否已经分配完毕
+     * @return
+     */
+    private boolean isAcceptDeposit(){
+        return isAcceptDeposit;
+    }
 
     /**
      * 获取给合约分配的token数量
@@ -1467,38 +1487,6 @@ public class Pocm extends Ownable implements Contract {
             return false;
         }
         return true;
-    }
-
-
-    /**
-     * 检查是否允许接收抵押，同时计算未领取的奖励数量
-     * @return
-     */
-    private boolean whetherAcceptDeposit(){
-        if(isAcceptDeposit){
-            //统计未领取的奖励数量
-            BigInteger amountTmp=BigInteger.ZERO;
-            if(depositUsers!=null && depositUsers.size()>0){
-                Iterator<DepositInfo> iter=depositUsers.values().iterator();
-                while (iter.hasNext()){
-                    DepositInfo depositInfo=iter.next();
-                    if(depositInfo!=null){
-                        amountTmp=amountTmp.add(this.calcUnReceiceMining(depositInfo,null,0));
-                    }
-                }
-            }
-            BigInteger rewardsAmount= this.allocationAmount.add(amountTmp);
-            //当已领取的奖励+未领取的奖励 >= 总Token数，不再接受抵押委托
-            if(rewardsAmount.compareTo(totalAllocation)>=0){
-                this.unRewardsAmount=totalAllocation.subtract(this.allocationAmount);
-                this.isAcceptDeposit=false;
-                this.totalDepositForEnd=toNuls(totalDepositManager.getTotalDeposit());
-                BigDecimal b_remainAmount= new BigDecimal(this.unRewardsAmount);
-                //超过总Token，按投资比例分配,设置小数点后10位提高计算精度
-                this.allocationRatio =b_remainAmount.divide( this.totalDepositForEnd,10,BigDecimal.ROUND_DOWN);
-            }
-        }
-        return isAcceptDeposit;
     }
 
     @View
