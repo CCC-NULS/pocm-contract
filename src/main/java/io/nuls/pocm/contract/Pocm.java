@@ -579,6 +579,31 @@ public class Pocm extends Ownable implements Contract {
     }
 
     /**
+     * 领取所有用户的奖励，然后清理奖励的过程数据
+     */
+    public void receiveAwardsForAllUser(){
+        List<CurrentMingInfo> mingInfosList=new ArrayList<CurrentMingInfo>();
+        if(depositUsers!=null && depositUsers.size()>0){
+            Iterator<DepositInfo> iter=depositUsers.values().iterator();
+            while (iter.hasNext()){
+                DepositInfo depositInfo=iter.next();
+                if(depositInfo!=null){
+                    List<CurrentMingInfo> mingInfosListTmp= this.receive(depositInfo,0);
+                    if(mingInfosListTmp!=null){
+                        mingInfosList.addAll(mingInfosListTmp);
+                    }
+                }
+            }
+            RewardCycleInfo lastCycleInfo = totalDepositList.get(totalDepositIndex.get(this.lastCalcCycle));
+            totalDepositList.clear();
+            totalDepositIndex.clear();
+            totalDepositList.add(lastCycleInfo);
+            totalDepositIndex.put(this.lastCalcCycle, totalDepositList.size() - 1);
+        }
+        emit(new CurrentMiningInfoEvent(mingInfosList));
+    }
+
+    /**
      * 由挖矿接收地址发起领取奖励;当抵押用户为其他用户做抵押挖矿时，接收token用户可以发起此方法
      *
      * @return
