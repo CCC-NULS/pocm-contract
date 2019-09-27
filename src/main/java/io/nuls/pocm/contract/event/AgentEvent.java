@@ -25,6 +25,8 @@ package io.nuls.pocm.contract.event;
 
 import io.nuls.contract.sdk.Event;
 
+import java.math.BigInteger;
+
 /**
  * @author: PierreLuo
  * @date: 2019-08-18
@@ -33,11 +35,16 @@ public class AgentEvent implements Event {
 
     private String hash;
 
+    private BigInteger value;
+
+
+
     public AgentEvent() {
     }
 
-    public AgentEvent(String hash) {
+    public AgentEvent(String hash,BigInteger value) {
         this.hash = hash;
+        this.value=value;
     }
 
     public String getHash() {
@@ -46,5 +53,13 @@ public class AgentEvent implements Event {
 
     public void setHash(String hash) {
         this.hash = hash;
+    }
+
+    public BigInteger getValue() {
+        return value;
+    }
+
+    public void setValues(BigInteger value) {
+        this.value = value;
     }
 }

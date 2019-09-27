@@ -1,5 +1,6 @@
 package io.nuls.pocm.contract.model;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 /**
@@ -19,6 +20,9 @@ public class RewardCycleInfo {
 
     //距离上次统计相差的奖励周期数
     private int differCycleValue;
+
+    //奖励基数=currentPrice/availableDepositAmount * differCycleValue +上一次统计的奖励周期rewardBase值
+    private BigDecimal rewardBase;
 
     public BigInteger getAvailableDepositAmount() {
         return availableDepositAmount;
@@ -52,9 +56,17 @@ public class RewardCycleInfo {
         this.currentPrice = currentPrice;
     }
 
+    public BigDecimal getRewardBase() {
+        return rewardBase;
+    }
+
+    public void setRewardBase(BigDecimal rewardBase) {
+        this.rewardBase = rewardBase;
+    }
+
     @Override
     public String toString(){
         return "{rewardingCylce:"+rewardingCylce+",currentPrice:"+currentPrice.toString()+",availableDepositAmount:"+availableDepositAmount
-                +",differCycleValue:"+differCycleValue+"}";
+                +",differCycleValue:"+differCycleValue+",rewardBase:"+rewardBase.toPlainString()+"}";
     }
 }

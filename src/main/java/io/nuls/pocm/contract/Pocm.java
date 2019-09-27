@@ -233,7 +233,9 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(openConsensus, "未开启共识功能");
         String[] agentInfo = consensusManager.addOtherAgent(agentHash);
-        emit(new AgentEvent(agentHash));
+        String agentAddress = agentInfo[0];
+        BigInteger value = new BigInteger(agentInfo[3]);
+        emit(new AgentEvent(agentHash,value));
 
         //将共识节点创建者的委托金额加入委托中，参与Token奖励的分配
         //总Token额度大于零，表示已经为此POCM分配了Token，则要检查可领取的Token数量是否足够，若为0表示还没有分配
@@ -243,8 +245,7 @@ public class Pocm extends Ownable implements Contract {
 
         //BigInteger rewardsAmount= this.allocationAmount.add(this.unRewardsAmount);
 
-        String agentAddress = agentInfo[0];
-        BigInteger value = new BigInteger(agentInfo[3]);
+
         long currentHeight = Block.number();
         long depositNumber = NUMBER++;
         ConsensusAgentDepositInfo agentDepositInfo=new ConsensusAgentDepositInfo(agentHash,agentAddress,depositNumber);
@@ -1147,13 +1148,32 @@ public class Pocm extends Ownable implements Contract {
                 cycleInfo.setRewardingCylce(putCycle);
                 cycleInfo.setDifferCycleValue(1);
                 cycleInfo.setCurrentPrice(this.currentPrice);
+
+                BigDecimal sumPrice=BigDecimal.ZERO;
+                if(cycleInfo.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                    BigDecimal amount = toNuls(cycleInfo.getAvailableDepositAmount());
+                    //为了提高计算的精确度，保留小数点后8位
+                    sumPrice= new BigDecimal(cycleInfo.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN);
+                }
+                cycleInfo.setRewardBase(sumPrice);
+
                 totalDepositList.add(cycleInfo);
             } else {
                 RewardCycleInfo lastCycleInfo = totalDepositList.get(totalDepositIndex.get(this.lastCalcCycle));
+                int differCycleValue=putCycle - lastCycleInfo.getRewardingCylce();
                 cycleInfo.setAvailableDepositAmount(depositValue.add(lastCycleInfo.getAvailableDepositAmount()));
                 cycleInfo.setRewardingCylce(putCycle);
-                cycleInfo.setDifferCycleValue(putCycle - lastCycleInfo.getRewardingCylce());
+                cycleInfo.setDifferCycleValue(differCycleValue);
                 cycleInfo.setCurrentPrice(this.currentPrice);
+
+                BigDecimal sumPrice=BigDecimal.ZERO;
+                if(cycleInfo.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                    BigDecimal amount = toNuls(cycleInfo.getAvailableDepositAmount());
+                    //为了提高计算的精确度，保留小数点后8位
+                    sumPrice= new BigDecimal(cycleInfo.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(differCycleValue));
+                }
+                cycleInfo.setRewardBase(lastCycleInfo.getRewardBase().add(sumPrice));
+
                 totalDepositList.add(cycleInfo);
             }
             totalDepositIndex.put(putCycle, totalDepositList.size() - 1);
@@ -1188,15 +1208,25 @@ public class Pocm extends Ownable implements Contract {
             if (totalDepositList.size() > 0) {
                 //取队列中最后一个奖励周期的信息
                 RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositList.size() - 1);
+                int differCycleValue=currentCycle - cycleInfoTmp.getRewardingCylce();
                 cycleInfo.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount());
-                cycleInfo.setDifferCycleValue(currentCycle - cycleInfoTmp.getRewardingCylce());
+                cycleInfo.setDifferCycleValue(differCycleValue);
                 cycleInfo.setCurrentPrice(this.currentPrice);
                 cycleInfo.setRewardingCylce(currentCycle);
+
+                BigDecimal sumPrice=BigDecimal.ZERO;
+                if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                    BigDecimal amount = toNuls(cycleInfoTmp.getAvailableDepositAmount());
+                    //为了提高计算的精确度，保留小数点后8位
+                    sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(differCycleValue));
+                }
+                cycleInfo.setRewardBase(cycleInfoTmp.getRewardBase().add(sumPrice));
             } else {
                 cycleInfo.setAvailableDepositAmount(BigInteger.ZERO);
                 cycleInfo.setDifferCycleValue(1);
                 cycleInfo.setCurrentPrice(this.currentPrice);
                 cycleInfo.setRewardingCylce(currentCycle);
+                cycleInfo.setRewardBase(BigDecimal.ZERO);
             }
             lastCalcCycle = currentCycle;
             totalDepositList.add(cycleInfo);
@@ -1221,15 +1251,25 @@ public class Pocm extends Ownable implements Contract {
             }
             if (this.lastCalcCycle != 0) {
                 RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositIndex.get(this.lastCalcCycle));
+                int differCycleValue=rewardingCycle - cycleInfoTmp.getRewardingCylce();
                 cycleInfo.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount());
-                cycleInfo.setDifferCycleValue(rewardingCycle - cycleInfoTmp.getRewardingCylce());
+                cycleInfo.setDifferCycleValue(differCycleValue);
+                BigDecimal sumPrice=BigDecimal.ZERO;
+                if(cycleInfo.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                    BigDecimal amount = toNuls(cycleInfo.getAvailableDepositAmount());
+                    //为了提高计算的精确度，保留小数点后8位
+                    sumPrice= new BigDecimal(this.currentPrice).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(differCycleValue));
+                }
+                cycleInfo.setRewardBase(cycleInfoTmp.getRewardBase().add(sumPrice));
             } else {
                 //第一次进行抵押操作
                 cycleInfo.setAvailableDepositAmount(BigInteger.ZERO);
                 cycleInfo.setDifferCycleValue(1);
+                cycleInfo.setRewardBase(BigDecimal.ZERO);
             }
             cycleInfo.setRewardingCylce(rewardingCycle);
             cycleInfo.setCurrentPrice(this.currentPrice);
+
             totalDepositList.add(cycleInfo);
             totalDepositIndex.put(rewardingCycle, totalDepositList.size() - 1);
             height += this.rewardHalvingCycle;
@@ -1252,6 +1292,14 @@ public class Pocm extends Ownable implements Contract {
             //加入抵押和退出抵押在同一个奖励周期，更新下一个奖励周期的总抵押数
             RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositIndex.get(currentCycle + 2));
             cycleInfoTmp.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount().subtract(depositValue));
+
+            BigDecimal sumPrice=BigDecimal.ZERO;
+            if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                BigDecimal amount = toNuls(cycleInfoTmp.getAvailableDepositAmount());
+                //为了提高计算的精确度，保留小数点后8位
+                sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
+            }
+            cycleInfoTmp.setRewardBase(sumPrice);
         } else {
             //加入抵押和退出抵押不在同一个奖励周期,则更新当前奖励周期的总抵押数
             int operCycle = currentCycle + 1;
@@ -1260,6 +1308,15 @@ public class Pocm extends Ownable implements Contract {
             if (isContainsKey) {
                 RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositIndex.get(operCycle));
                 cycleInfoTmp.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount().subtract(depositValue));
+
+                BigDecimal sumPrice=BigDecimal.ZERO;
+                if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                    BigDecimal amount = toNuls(cycleInfoTmp.getAvailableDepositAmount());
+                    //为了提高计算的精确度，保留小数点后8位
+                    sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
+                }
+                cycleInfoTmp.setRewardBase(sumPrice);
+
             } else {
                 //当前高度已经达到奖励减半高度,将所有的减半周期高度对于的奖励高度加入队列
                 long nextHeight = currentHeight + this.awardingCycle;
@@ -1271,10 +1328,20 @@ public class Pocm extends Ownable implements Contract {
 
                 //取队列中最后一个奖励周期的信息
                 RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositList.size() - 1);
+                int differCycleValue=operCycle - cycleInfoTmp.getRewardingCylce();
                 cycleInfo.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount().subtract(depositValue));
-                cycleInfo.setDifferCycleValue(operCycle - cycleInfoTmp.getRewardingCylce());
+                cycleInfo.setDifferCycleValue(differCycleValue);
                 cycleInfo.setCurrentPrice(currentPrice);
                 cycleInfo.setRewardingCylce(operCycle);
+
+                BigDecimal sumPrice=BigDecimal.ZERO;
+                if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                    BigDecimal amount = toNuls(cycleInfo.getAvailableDepositAmount());
+                    //为了提高计算的精确度，保留小数点后8位
+                    sumPrice= new BigDecimal(cycleInfo.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(differCycleValue));
+                }
+                cycleInfo.setRewardBase(cycleInfoTmp.getRewardBase().add(sumPrice));
+
                 totalDepositList.add(cycleInfo);
 
                 totalDepositIndex.put(operCycle, totalDepositList.size() - 1);
@@ -1290,9 +1357,13 @@ public class Pocm extends Ownable implements Contract {
      * @return
      */
     private BigDecimal calcPriceBetweenCycle(int startCycle) {
-        BigDecimal sumPrice = BigDecimal.ZERO;
-        BigDecimal sumPriceForRegin = BigDecimal.ZERO;
-        int startIndex = totalDepositIndex.get(startCycle - 1) + 1;
+       //BigDecimal sumPrice = BigDecimal.ZERO;
+        //BigDecimal sumPriceForRegin = BigDecimal.ZERO;
+        int startIndex = totalDepositIndex.get(startCycle - 1);
+        BigDecimal sumPriceEnd=totalDepositList.get(totalDepositList.size()-1).getRewardBase();
+        BigDecimal sumPriceStart=totalDepositList.get(startIndex).getRewardBase();
+
+/*        int startIndex = totalDepositIndex.get(startCycle - 1)+1;
         for (int i = startIndex; i < totalDepositList.size(); i++) {
             RewardCycleInfo cycleInfoTmp = totalDepositList.get(i);
             if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
@@ -1301,8 +1372,9 @@ public class Pocm extends Ownable implements Contract {
                 sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
             }
             sumPriceForRegin = sumPriceForRegin.add(sumPrice);
-        }
-        return sumPriceForRegin;
+        }*/
+
+        return sumPriceEnd.subtract(sumPriceStart);
     }
 
     /**
