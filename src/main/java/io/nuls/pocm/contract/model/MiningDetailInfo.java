@@ -24,6 +24,15 @@ public class MiningDetailInfo {
     //来源地址
     private String depositorAddress;
 
+    /**
+     * 由后台统一领取但是未发放的奖励金额
+     */
+    private BigInteger unTranferReceivedMining=BigInteger.ZERO;
+
+    //后台统一领取时挖矿次数
+    private int unTranferMiningCount=0;
+
+
     public MiningDetailInfo(String miningAddress ,String depositorAddress,long depositNumber){
         this.receiverMiningAddress=miningAddress;
         this.depositorAddress=depositorAddress;
@@ -80,11 +89,27 @@ public class MiningDetailInfo {
     }
 
 
+    public BigInteger getUnTranferReceivedMining() {
+        return unTranferReceivedMining;
+    }
+
+    public void setUnTranferReceivedMining(BigInteger unTranferReceivedMining) {
+        this.unTranferReceivedMining = unTranferReceivedMining;
+    }
+
+    public int getUnTranferMiningCount() {
+        return unTranferMiningCount;
+    }
+
+    public void setUnTranferMiningCount(int unTranferMiningCount) {
+        this.unTranferMiningCount = unTranferMiningCount;
+    }
+
     @Override
     public String toString(){
         return "{depositNumber:"+depositNumber+",miningAmount:"+miningAmount.toString()+",receiverMiningAddress:"+receiverMiningAddress
                 +",miningCount:"+miningCount+",nextStartMiningCycle:"+nextStartMiningCycle
-                +",depositorAddress:"+depositorAddress+"}";
+                +",depositorAddress:"+depositorAddress+",unTranferReceivedMining:"+unTranferReceivedMining.toString()+",unTranferMiningCount:"+unTranferMiningCount+"}";
     }
 
 }

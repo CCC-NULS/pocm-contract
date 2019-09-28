@@ -302,7 +302,7 @@ public class Pocm extends Ownable implements Contract {
             //检查该抵押编号的记录是否存在
             depositInfo.getDepositDetailInfoByNumber(number);
         }
-        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,number);
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,number,true);
 
 
         //2.共识节点的创建者退出
@@ -471,7 +471,7 @@ public class Pocm extends Ownable implements Contract {
         //表示退出全部的抵押
         if (depositNumber == 0) {
             // 发放所有抵押的奖励
-            mingInfosList=this.receive(depositInfo, 0);
+            mingInfosList=this.receive(depositInfo, 0,true);
 
             long result = checkAllDepositLocked(depositInfo);
             require(result == -1, "挖矿的NULS没有全部解锁");
@@ -488,7 +488,7 @@ public class Pocm extends Ownable implements Contract {
             depositInfo.clearDepositDetailInfos();
         } else {
             // 发放指定抵押编号的奖励
-            mingInfosList=this.receive(depositInfo, depositNumber);
+            mingInfosList=this.receive(depositInfo, depositNumber,true);
 
             //退出某一次抵押
             DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfoByNumber(depositNumber);
@@ -575,7 +575,7 @@ public class Pocm extends Ownable implements Contract {
             depositInfo.getDepositDetailInfoByNumber(number);
         }
 
-        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,number);
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,number,true);
         emit(new CurrentMiningInfoEvent(mingInfosList));
     }
 
@@ -589,16 +589,20 @@ public class Pocm extends Ownable implements Contract {
             while (iter.hasNext()){
                 DepositInfo depositInfo=iter.next();
                 if(depositInfo!=null){
-                    List<CurrentMingInfo> mingInfosListTmp= this.receive(depositInfo,0);
+                    List<CurrentMingInfo> mingInfosListTmp= this.receive(depositInfo,0,false);
                     if(mingInfosListTmp!=null){
                         mingInfosList.addAll(mingInfosListTmp);
                     }
                 }
             }
-            RewardCycleInfo lastCycleInfo = totalDepositList.get(totalDepositIndex.get(this.lastCalcCycle));
+            //删除totalDepositList队列中所有数据，只保留最后两条记录，因为若有投资者刚加入，需要这两条数据
+            RewardCycleInfo  lastCycleInfo1=totalDepositList.get(totalDepositList.size()-2);
+            RewardCycleInfo lastCycleInfo2 = totalDepositList.get(totalDepositIndex.get(this.lastCalcCycle));
             totalDepositList.clear();
             totalDepositIndex.clear();
-            totalDepositList.add(lastCycleInfo);
+            totalDepositList.add(lastCycleInfo1);
+            totalDepositIndex.put(lastCycleInfo1.getRewardingCylce(), totalDepositList.size() - 1);
+            totalDepositList.add(lastCycleInfo2);
             totalDepositIndex.put(this.lastCalcCycle, totalDepositList.size() - 1);
         }
         emit(new CurrentMiningInfoEvent(mingInfosList));
@@ -620,7 +624,7 @@ public class Pocm extends Ownable implements Contract {
             MiningDetailInfo detailInfo = detailInfos.get(key);
             if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
                 DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
-                List<CurrentMingInfo> mingInfosList=this.receive(depositInfo, 0);
+                List<CurrentMingInfo> mingInfosList=this.receive(depositInfo, 0,true);
                 alreadyReceive.add(detailInfo.getDepositorAddress());
                 if(mingInfosList!=null && mingInfosList.size()>0){
                     mergemingInfosList.addAll(mingInfosList);
@@ -830,7 +834,7 @@ public class Pocm extends Ownable implements Contract {
      * @param depositInfo
      * @return 返回请求地址的挖矿信息
      */
-    private List<CurrentMingInfo> receive(DepositInfo depositInfo,long depositNumber) {
+    private List<CurrentMingInfo> receive(DepositInfo depositInfo,long depositNumber,Boolean isTranfer) {
         Map<String, BigInteger> mingResult = new HashMap<String, BigInteger>();
         //预分配的Token已经奖励完，不再进行奖励计算
         if(allocationAmount.compareTo(totalAllocation)==0){
@@ -841,27 +845,26 @@ public class Pocm extends Ownable implements Contract {
         //this.whetherAcceptDeposit();
 
         // 奖励计算, 计算每次挖矿的高度是否已达到奖励减半周期的范围，若达到，则当次奖励减半，以此类推
-        List<CurrentMingInfo> mingInfosList = this.calcMining(depositInfo, mingResult,depositNumber);
-
-        Set<Map.Entry<String, BigInteger>> entrySet=mingResult.entrySet();
-        Iterator<Map.Entry<String, BigInteger>> iterator =entrySet.iterator();
-        long currentTime=Block.timestamp();
-        String lockedTime=String.valueOf(currentTime+this.lockedTokenDay*this.TIMEPERDAY);
-        while(iterator.hasNext()){
-            Map.Entry<String, BigInteger> ming = iterator.next();
-            BigInteger mingValue = ming.getValue();
-            if(mingValue.compareTo(BigInteger.ZERO)>0){
-                //  user.transfer(mingValue);
-                String[][] args = new String[3][];
-                args[0]=new String[]{ming.getKey()};
-                args[1]=new String[]{mingValue.toString()};
-                args[2]=new String[]{lockedTime};
-                //tokenContractAddress.call("transfer","",args,BigInteger.ZERO);
-                tokenContractAddress.call("transferLocked","",args,BigInteger.ZERO);
-                this.allocationAmount=this.allocationAmount.add(mingValue);
+        List<CurrentMingInfo> mingInfosList = this.calcMining(depositInfo, mingResult,depositNumber,isTranfer);
+        if(isTranfer){
+            Set<Map.Entry<String, BigInteger>> entrySet=mingResult.entrySet();
+            Iterator<Map.Entry<String, BigInteger>> iterator =entrySet.iterator();
+            long currentTime=Block.timestamp();
+            String lockedTime=String.valueOf(currentTime+this.lockedTokenDay*this.TIMEPERDAY);
+            while(iterator.hasNext()){
+                Map.Entry<String, BigInteger> ming = iterator.next();
+                BigInteger mingValue = ming.getValue();
+                if(mingValue.compareTo(BigInteger.ZERO)>0){
+                    String[][] args = new String[3][];
+                    args[0]=new String[]{ming.getKey()};
+                    args[1]=new String[]{mingValue.toString()};
+                    args[2]=new String[]{lockedTime};
+                    //tokenContractAddress.call("transfer","",args,BigInteger.ZERO);
+                    tokenContractAddress.call("transferLocked","",args,BigInteger.ZERO);
+                    this.allocationAmount=this.allocationAmount.add(mingValue);
+                }
             }
         }
-
       return mingInfosList;
     }
 
@@ -873,7 +876,7 @@ public class Pocm extends Ownable implements Contract {
      * @param depositNumber
      * @return
      */
-    private List<CurrentMingInfo> calcMining(DepositInfo depositInfo, Map<String, BigInteger> mingResult,long depositNumber) {
+    private List<CurrentMingInfo> calcMining(DepositInfo depositInfo, Map<String, BigInteger> mingResult,long depositNumber,Boolean isTranfer) {
         List<CurrentMingInfo> mingInfosList=new ArrayList<CurrentMingInfo>();
         long currentHeight = Block.number();
         int currentRewardCycle = this.calcRewardCycle(currentHeight);
@@ -892,9 +895,9 @@ public class Pocm extends Ownable implements Contract {
             }*/
 
             int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
-            //说明未到领取奖励的高度
+            BigInteger miningTmp =BigInteger.ZERO;
+            //达到领取奖励的高度
             if (nextStartMiningCycle <= currentRewardCycle) {
-                BigInteger miningTmp =BigInteger.ZERO;
                 //已经分配完毕
                 if(this.isAcceptDeposit){
                     BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
@@ -908,44 +911,60 @@ public class Pocm extends Ownable implements Contract {
                     }
                 }
 
-/*
-                if(!isAcceptDeposit){
-                    //在余额不足的情况下，已经领取过一部分
-                    if(mingDetailInfo.getCanRewarsAmountWhenFinal().compareTo(BigInteger.ZERO)>0){
-                        if(mingDetailInfo.getCanRewarsAmountWhenFinal().compareTo(miningTmp)<=0){
-                            miningTmp=mingDetailInfo.getCanRewarsAmountWhenFinal();
-                            mingDetailInfo.setRewardsEnd(true);
-                            mingDetailInfo.setCanRewarsAmountWhenFinal(BigInteger.ZERO);
-                        }else{
-                            mingDetailInfo.setCanRewarsAmountWhenFinal(mingDetailInfo.getCanRewarsAmountWhenFinal().subtract(miningTmp));
-                        }
-                    }else{
-                        //余额不足的情况下，第一次领取
-                        BigInteger canRewardsamount=this.allocationRatio.multiply(toNuls(detailInfo.getAvailableAmount())).toBigInteger();
-                        if(canRewardsamount.compareTo(miningTmp)<=0){
-                            miningTmp=canRewardsamount;
-                            mingDetailInfo.setRewardsEnd(true);
-                        }else{
-                            mingDetailInfo.setCanRewarsAmountWhenFinal(canRewardsamount.subtract(miningTmp));
-                        }
-                    }
-                }*/
+                if(isTranfer){
+                    //将后台领取但未发放的加上
+                    miningTmp=miningTmp.add(mingDetailInfo.getUnTranferReceivedMining());
 
-                mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
-                mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
-                mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
-                miningInfo.setTotalMining(miningInfo.getTotalMining().add(miningTmp));
-                miningInfo.setReceivedMining(miningInfo.getReceivedMining().add(miningTmp));
+                    mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
+                    mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() + currentRewardCycle - nextStartMiningCycle + 1+mingDetailInfo.getUnTranferMiningCount());
+                    mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
 
-                mingResult.put(mingDetailInfo.getReceiverMiningAddress(), miningTmp);
+                    miningInfo.setTotalMining(miningInfo.getTotalMining().add(miningTmp));
+                    miningInfo.setReceivedMining(miningInfo.getReceivedMining().add(miningTmp));
+                    mingResult.put(mingDetailInfo.getReceiverMiningAddress(), miningTmp);
 
-                //封装当次的挖矿信息
-                CurrentMingInfo currentMingInfo= new CurrentMingInfo();
-                currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
-                currentMingInfo.setMiningAmount(miningTmp);
-                currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
-                currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
-                mingInfosList.add(currentMingInfo);
+                    //封装当次的挖矿信息
+                    CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+                    currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+                    currentMingInfo.setMiningAmount(miningTmp);
+                    currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1+mingDetailInfo.getUnTranferMiningCount());
+                    currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+                    mingInfosList.add(currentMingInfo);
+
+                    //清理后台领取时的数据
+                    mingDetailInfo.setUnTranferMiningCount(0);
+                    mingDetailInfo.setUnTranferReceivedMining(BigInteger.ZERO);
+                }else{
+                    //后台领取但是不发放，暂时记录下来
+                    mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
+                    mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
+                }
+            }else if(isTranfer){
+                //如果未达到下一次领取周期，但是有未发放的奖励，说明后台刚刚触发了统一领取
+                if(mingDetailInfo.getUnTranferReceivedMining().compareTo(BigInteger.ZERO)>0){
+                    //未发放的奖励金额
+                    miningTmp=mingDetailInfo.getUnTranferReceivedMining();
+
+                    mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
+                    mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() +mingDetailInfo.getUnTranferMiningCount());
+                    mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
+
+                    miningInfo.setTotalMining(miningInfo.getTotalMining().add(miningTmp));
+                    miningInfo.setReceivedMining(miningInfo.getReceivedMining().add(miningTmp));
+                    mingResult.put(mingDetailInfo.getReceiverMiningAddress(), miningTmp);
+
+                    //封装当次的挖矿信息
+                    CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+                    currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+                    currentMingInfo.setMiningAmount(miningTmp);
+                    currentMingInfo.setMiningCount(mingDetailInfo.getUnTranferMiningCount());
+                    currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+                    mingInfosList.add(currentMingInfo);
+
+                    //清理后台领取时的数据
+                    mingDetailInfo.setUnTranferMiningCount(0);
+                    mingDetailInfo.setUnTranferReceivedMining(BigInteger.ZERO);
+                }
             }
         }else{
             BigInteger miningSum=this.allocationAmount;
@@ -957,6 +976,33 @@ public class Pocm extends Ownable implements Contract {
                 int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
                 //说明未到领取奖励的高度
                 if (nextStartMiningCycle > currentRewardCycle) {
+                    //如果未达到下一次领取周期，但是有未发放的奖励（说明后台刚刚触发了统一领取）并且是投资者触发的
+                    if(isTranfer && mingDetailInfo.getUnTranferReceivedMining().compareTo(BigInteger.ZERO)>0){
+                        //未发放的奖励金额
+                        BigInteger miningTmp=mingDetailInfo.getUnTranferReceivedMining();
+                        mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
+                        mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() +mingDetailInfo.getUnTranferMiningCount());
+                        mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
+
+                        miningInfo.setTotalMining(miningInfo.getTotalMining().add(miningTmp));
+                        miningInfo.setReceivedMining(miningInfo.getReceivedMining().add(miningTmp));
+                        if (mingResult.containsKey(mingDetailInfo.getReceiverMiningAddress())) {
+                            miningTmp = mingResult.get(mingDetailInfo.getReceiverMiningAddress()).add(miningTmp);
+                        }
+                        mingResult.put(mingDetailInfo.getReceiverMiningAddress(), miningTmp);
+
+                        //封装当次的挖矿信息
+                        CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+                        currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+                        currentMingInfo.setMiningAmount(miningTmp);
+                        currentMingInfo.setMiningCount(mingDetailInfo.getUnTranferMiningCount());
+                        currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+                        mingInfosList.add(currentMingInfo);
+
+                        //清理后台领取时的数据
+                        mingDetailInfo.setUnTranferMiningCount(0);
+                        mingDetailInfo.setUnTranferReceivedMining(BigInteger.ZERO);
+                    }
                     continue;
                 }
 /*                if(mingDetailInfo.isRewardsEnd()){
@@ -977,48 +1023,37 @@ public class Pocm extends Ownable implements Contract {
                     miningSum=miningSum.add(miningTmp);
                 }
 
+                if(isTranfer){
+                    //将后台领取但未发放的加上
+                    miningTmp=miningTmp.add(mingDetailInfo.getUnTranferReceivedMining());
 
-/*                //Token数量不够分配
-                if(!isAcceptDeposit){
-                    //在余额不足的情况下，已经领取过一部分
-                    if(mingDetailInfo.getCanRewarsAmountWhenFinal().compareTo(BigInteger.ZERO)>0){
-                        if(mingDetailInfo.getCanRewarsAmountWhenFinal().compareTo(miningTmp)<=0){
-                            miningTmp=mingDetailInfo.getCanRewarsAmountWhenFinal();
-                            mingDetailInfo.setRewardsEnd(true);
-                            mingDetailInfo.setCanRewarsAmountWhenFinal(BigInteger.ZERO);
-                        }else{
-                            mingDetailInfo.setCanRewarsAmountWhenFinal(mingDetailInfo.getCanRewarsAmountWhenFinal().subtract(miningTmp));
-                        }
-                    }else{
-                        //余额不足的情况下，第一次领取
-                        BigInteger canRewardsamount=this.allocationRatio.multiply(toNuls(detailInfo.getAvailableAmount())).toBigInteger();
-                        if(canRewardsamount.compareTo(miningTmp)<=0){
-                            miningTmp=canRewardsamount;
-                            mingDetailInfo.setRewardsEnd(true);
-                        }else{
-                            mingDetailInfo.setCanRewarsAmountWhenFinal(canRewardsamount.subtract(miningTmp));
-                        }
+                    mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
+                    mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() + currentRewardCycle - nextStartMiningCycle + 1+mingDetailInfo.getUnTranferMiningCount());
+                    mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
+
+                    miningInfo.setTotalMining(miningInfo.getTotalMining().add(miningTmp));
+                    miningInfo.setReceivedMining(miningInfo.getReceivedMining().add(miningTmp));
+                    if (mingResult.containsKey(mingDetailInfo.getReceiverMiningAddress())) {
+                        miningTmp = mingResult.get(mingDetailInfo.getReceiverMiningAddress()).add(miningTmp);
                     }
-                }*/
+                    mingResult.put(mingDetailInfo.getReceiverMiningAddress(), miningTmp);
 
-                mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningTmp));
-                mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
-                mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
-                miningInfo.setTotalMining(miningInfo.getTotalMining().add(miningTmp));
-                miningInfo.setReceivedMining(miningInfo.getReceivedMining().add(miningTmp));
+                    //封装当次的挖矿信息
+                    CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+                    currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+                    currentMingInfo.setMiningAmount(miningTmp);
+                    currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1+mingDetailInfo.getUnTranferMiningCount());
+                    currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+                    mingInfosList.add(currentMingInfo);
 
-                //封装当次的挖矿信息
-                CurrentMingInfo currentMingInfo= new CurrentMingInfo();
-                currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
-                currentMingInfo.setMiningAmount(miningTmp);
-                currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
-                currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
-                mingInfosList.add(currentMingInfo);
-
-                if (mingResult.containsKey(mingDetailInfo.getReceiverMiningAddress())) {
-                    miningTmp = mingResult.get(mingDetailInfo.getReceiverMiningAddress()).add(miningTmp);
+                    //清理后台领取时的数据
+                    mingDetailInfo.setUnTranferMiningCount(0);
+                    mingDetailInfo.setUnTranferReceivedMining(BigInteger.ZERO);
+                }else{
+                    //后台领取但是不发放，暂时记录下来
+                    mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
+                    mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
                 }
-                mingResult.put(mingDetailInfo.getReceiverMiningAddress(), miningTmp);
             }
         }
         return mingInfosList;
@@ -1059,6 +1094,7 @@ public class Pocm extends Ownable implements Contract {
             int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
             //说明未到领取奖励的高度
             if (nextStartMiningCycle > currentRewardCycle) {
+                mining = mining.add(mingDetailInfo.getUnTranferReceivedMining());
                 continue;
             }
             BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
@@ -1073,7 +1109,7 @@ public class Pocm extends Ownable implements Contract {
                 }
             }*/
 
-            mining = mining.add(miningTmp);
+            mining = mining.add(miningTmp).add(mingDetailInfo.getUnTranferReceivedMining());
         }
         return mining;
     }
