@@ -480,10 +480,12 @@ public class Pocm extends Ownable implements Contract {
             Map<Long, DepositDetailInfo> depositDetailInfos = depositInfo.getDepositDetailInfos();
             delMingInfo(depositDetailInfos);
             //从队列中退出抵押金额
-            for (Long key : depositDetailInfos.keySet()) {
-                DepositDetailInfo detailInfo = depositDetailInfos.get(key);
+            Iterator<Map.Entry<Long, DepositDetailInfo>> iterator =depositDetailInfos.entrySet().iterator();
+            while(iterator.hasNext()){
+                Map.Entry<Long, DepositDetailInfo> iterInfo = iterator.next();
+                DepositDetailInfo detailInfo = iterInfo.getValue();
                 this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
-                depositNumbers.add(key);
+                depositNumbers.add(iterInfo.getKey());
             }
             depositInfo.clearDepositDetailInfos();
         } else {
@@ -539,11 +541,14 @@ public class Pocm extends Ownable implements Contract {
         Map<Long, DepositDetailInfo> depositDetailInfos = depositInfo.getDepositDetailInfos();
         delMingInfo(depositDetailInfos);
         //从队列中退出抵押金额
-        for (Long key : depositDetailInfos.keySet()) {
-            DepositDetailInfo detailInfo = depositDetailInfos.get(key);
+        Iterator<Map.Entry<Long, DepositDetailInfo>> iterator =depositDetailInfos.entrySet().iterator();
+        while(iterator.hasNext()){
+            Map.Entry<Long, DepositDetailInfo> iterInfo = iterator.next();
+            DepositDetailInfo detailInfo = iterInfo.getValue();
             this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
-            depositNumbers.add(key);
+            depositNumbers.add(iterInfo.getKey());
         }
+
         depositInfo.clearDepositDetailInfos();
         totalDepositAddressCount -= 1;
         depositUsers.remove(userString);
@@ -620,8 +625,10 @@ public class Pocm extends Ownable implements Contract {
         require(info != null, "没有替" + user.toString() + "用户抵押挖矿的挖矿信息");
         Map<Long, MiningDetailInfo> detailInfos = info.getMiningDetailInfos();
         List<CurrentMingInfo> mergemingInfosList =new ArrayList<CurrentMingInfo>();
-        for (Long key : detailInfos.keySet()) {
-            MiningDetailInfo detailInfo = detailInfos.get(key);
+
+        Iterator<MiningDetailInfo> iterator = detailInfos.values().iterator();
+        while(iterator.hasNext()){
+            MiningDetailInfo detailInfo = iterator.next();
             if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
                 DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
                 List<CurrentMingInfo> mingInfosList=this.receive(depositInfo, 0,true);
@@ -729,8 +736,9 @@ public class Pocm extends Ownable implements Contract {
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
         //this.whetherAcceptDeposit();
 
-        for (Long key : detailInfos.keySet()) {
-            MiningDetailInfo detailInfo = detailInfos.get(key);
+        Iterator<MiningDetailInfo> iterator =detailInfos.values().iterator();
+        while(iterator.hasNext()){
+            MiningDetailInfo detailInfo =  iterator.next();
             if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
                 DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
                 unReceiveAwards =unReceiveAwards.add(this.calcUnReceiceMining(depositInfo,address,0));
@@ -802,8 +810,11 @@ public class Pocm extends Ownable implements Contract {
     private long checkAllDepositLocked(DepositInfo depositInfo) {
         long result;
         Map<Long, DepositDetailInfo> infos = depositInfo.getDepositDetailInfos();
-        for (Long key : infos.keySet()) {
-            result = checkDepositLocked(infos.get(key));
+
+        Iterator<DepositDetailInfo> iterator =infos.values().iterator();
+        while(iterator.hasNext()){
+            DepositDetailInfo iterInfo = iterator.next();
+            result = checkDepositLocked(iterInfo);
             if (result != -1) {
                 return result;
             }
@@ -841,12 +852,9 @@ public class Pocm extends Ownable implements Contract {
             return null;
         }
 
-        //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
-        //this.whetherAcceptDeposit();
-
         // 奖励计算, 计算每次挖矿的高度是否已达到奖励减半周期的范围，若达到，则当次奖励减半，以此类推
         List<CurrentMingInfo> mingInfosList = this.calcMining(depositInfo, mingResult,depositNumber,isTranfer);
-        if(isTranfer){
+         if(isTranfer){
             Set<Map.Entry<String, BigInteger>> entrySet=mingResult.entrySet();
             Iterator<Map.Entry<String, BigInteger>> iterator =entrySet.iterator();
             long currentTime=Block.timestamp();
@@ -939,8 +947,9 @@ public class Pocm extends Ownable implements Contract {
         }else{
             BigInteger miningSum=this.allocationAmount;
             //若未指定抵押编号，则只计算所有抵押的奖励收益
-            for (Long key : detailInfos.keySet()) {
-                DepositDetailInfo detailInfo = detailInfos.get(key);
+            Iterator<DepositDetailInfo> iterator =detailInfos.values().iterator();
+            while(iterator.hasNext()){
+                DepositDetailInfo detailInfo = iterator.next();
                 MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
                 MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
                 int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
@@ -1049,12 +1058,17 @@ public class Pocm extends Ownable implements Contract {
         //将上一个奖励周期的总抵押数更新至当前奖励周期的总抵押数
         this.moveLastDepositToCurrentCycle(currentHeight);
         Map<Long, DepositDetailInfo> detailInfos = depositInfo.getDepositDetailInfos();
-        for (Long key : detailInfos.keySet()) {
+
+        Set<Map.Entry<Long, DepositDetailInfo>> entrySet=detailInfos.entrySet();
+        Iterator<Map.Entry<Long, DepositDetailInfo>> iterator =entrySet.iterator();
+        while(iterator.hasNext()){
+            Map.Entry<Long, DepositDetailInfo> infoIter = iterator.next();
             //若指定了抵押编号，则只计算此抵押编号的奖励收益
-            if(depositNumber!=0 && key!=depositNumber){
+            if(depositNumber!=0 && infoIter.getKey()!=depositNumber){
                 continue;
             }
-            DepositDetailInfo detailInfo = detailInfos.get(key);
+            DepositDetailInfo detailInfo = infoIter.getValue();
+
             //只计算指定address的收益
             if(receiceAddress!=null && !detailInfo.getMiningAddress().equals(receiceAddress)){
                 continue;
@@ -1070,15 +1084,6 @@ public class Pocm extends Ownable implements Contract {
             BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
             BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
             BigInteger miningTmp =availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
-
-            //Token数量不够分配,按照抵押比例进行分配
- /*           if(!isAcceptDeposit){
-                BigInteger canRewardsamount=this.allocationRatio.multiply(toNuls(detailInfo.getAvailableAmount())).toBigInteger();
-                if(canRewardsamount.compareTo(miningTmp)<=0){
-                    miningTmp=canRewardsamount;
-                }
-            }*/
-
             mining = mining.add(miningTmp).add(mingDetailInfo.getUnTranferReceivedMining());
         }
         return mining;
@@ -1541,6 +1546,22 @@ public class Pocm extends Ownable implements Contract {
         sb.append('}');
         return sb.toString();
     }
+
+
+    /**
+     * 向合约追加Token数量
+     */
+    public void appendTotalAllocation(){
+        String[][] args = new String[1][];
+        args[0]=new String[]{Msg.address().toString()};
+        String balance=tokenContractAddress.callWithReturnValue("balanceOf","",args,BigInteger.ZERO);
+        //合约持有的Token加上已经分配的Token=该合约总共可分配的Token
+        totalAllocation=this.allocationAmount.add(new BigInteger(balance));
+        if(!this.isAcceptDeposit&&this.totalAllocation.compareTo(this.allocationAmount)>0){
+            this.isAcceptDeposit=true;
+        }
+    }
+
 
     /**
      * 检查是否给合约分配的token
