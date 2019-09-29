@@ -3,7 +3,10 @@ package io.nuls.pocm.contract.ownership;
 import io.nuls.contract.sdk.Address;
 import io.nuls.contract.sdk.Event;
 import io.nuls.contract.sdk.Msg;
+import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
+
+import java.math.BigInteger;
 
 import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
@@ -57,6 +60,21 @@ public class Ownable {
         onlyOwner();
         emit(new OwnershipRenouncedEvent(owner));
         owner = null;
+    }
+
+    public void transferOtherNRC20(@Required Address nrc20, @Required Address to, @Required BigInteger value) {
+        onlyOwner();
+        require(!Msg.address().equals(nrc20), "Do nothing by yourself");
+        require(nrc20.isContract(), "[" + nrc20.toString() + "] is not a contract address");
+        String[][] args = new String[][]{new String[]{Msg.address().toString()}};
+        String balance = nrc20.callWithReturnValue("balanceOf", "", args, BigInteger.ZERO);
+        require(new BigInteger(balance).compareTo(value) >= 0, "No enough balance");
+
+        String methodName = "transfer";
+        String[][] args1 = new String[][]{
+                new String[]{to.toString()},
+                new String[]{value.toString()}};
+        nrc20.call(methodName, "(Address to, BigInteger value) return boolean", args1, BigInteger.ZERO);
     }
 
     /**
