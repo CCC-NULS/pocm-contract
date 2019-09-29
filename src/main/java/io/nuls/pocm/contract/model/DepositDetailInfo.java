@@ -22,7 +22,7 @@ public class DepositDetailInfo {
     //锁定金额（单位：na） =抵押金额*0.1
     private BigInteger lockedAmount=BigInteger.ZERO;
 
-    // 抵押开始高度
+    // 最后一次抵押开始高度
     private long depositHeight;
 
     //此抵押金额采矿获得的Token的分配地址（为空则默认为自身地址）

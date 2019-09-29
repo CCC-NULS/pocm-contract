@@ -49,7 +49,8 @@ public class MiningInfo {
     /**
      * 挖矿明细
      */
-    private Map<Long,MiningDetailInfo> miningDetailInfos =new HashMap<Long,MiningDetailInfo>();
+    private MiningDetailInfo miningDetailInfo;
+
 
     public MiningInfo() {
         this.totalMining = BigInteger.ZERO;
@@ -59,7 +60,6 @@ public class MiningInfo {
     public MiningInfo(MiningInfo info){
         this.totalMining=info.totalMining;
         this.receivedMining=info.receivedMining;
-        this.miningDetailInfos=info.miningDetailInfos;
     }
 
 
@@ -79,44 +79,18 @@ public class MiningInfo {
         this.receivedMining = receivedMining;
     }
 
-    public Map<Long, MiningDetailInfo> getMiningDetailInfos() {
-        return miningDetailInfos;
+    public MiningDetailInfo getMiningDetailInfo() {
+        return miningDetailInfo;
     }
 
-    public void setMiningDetailInfos(Map<Long, MiningDetailInfo> miningDetailInfos) {
-        this.miningDetailInfos = miningDetailInfos;
-    }
-    /**
-     * 根据抵押编号查找挖矿明细
-     * @param depositNumber
-     * @return
-     */
-    public MiningDetailInfo getMiningDetailInfoByNumber(long depositNumber){
-        MiningDetailInfo info=miningDetailInfos.get(depositNumber);
-        require(info != null, "未找到此抵押编号的挖矿详细信息");
-        return info;
-    }
-
-    public void removeMiningDetailInfoByNumber(long depositNumber){
-        miningDetailInfos.remove(depositNumber);
+    public void setMiningDetailInfo(MiningDetailInfo miningDetailInfo) {
+        this.miningDetailInfo = miningDetailInfo;
     }
 
     @Override
     public String toString(){
         return "{totalMining:"+totalMining.toString()+",receivedMining:"+receivedMining.toString()
-                +",miningDetailInfo:"+this.convertMapToString()+"}";
-    }
-
-    private  String convertMapToString(){
-        String detailinfo ="{";
-        String temp="";
-        for (Long key : miningDetailInfos.keySet()) {
-            MiningDetailInfo detailInfo=  miningDetailInfos.get(key);
-            temp =detailInfo.toString();
-            detailinfo=detailinfo+temp+",";
-        }
-        detailinfo=detailinfo.substring(0,detailinfo.length()-1)+"}";
-        return detailinfo;
+                +",miningDetailInfo:{"+miningDetailInfo.toString()+"}}";
     }
 
 }

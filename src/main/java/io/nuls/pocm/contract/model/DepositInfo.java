@@ -32,9 +32,9 @@ public class DepositInfo {
     private int depositCount;
 
     /**
-     * 抵押详细信息列表
+     * 抵押详细信息
      */
-    private Map<Long,DepositDetailInfo> depositDetailInfos =new HashMap<Long,DepositDetailInfo>();
+    private DepositDetailInfo depositDetailInfo;
 
     public DepositInfo(){
         this.depositTotalAmount=BigInteger.ZERO;
@@ -72,12 +72,12 @@ public class DepositInfo {
         this.depositLockedTotalAmount = depositLockedTotalAmount;
     }
 
-    public Map<Long, DepositDetailInfo> getDepositDetailInfos() {
-        return depositDetailInfos;
+    public DepositDetailInfo getDepositDetailInfo() {
+        return depositDetailInfo;
     }
 
-    public void setDepositDetailInfos(Map<Long, DepositDetailInfo> depositDetailInfos) {
-        this.depositDetailInfos = depositDetailInfos;
+    public void setDepositDetailInfo(DepositDetailInfo depositDetailInfo) {
+        this.depositDetailInfo = depositDetailInfo;
     }
 
     public int getDepositCount() {
@@ -97,51 +97,16 @@ public class DepositInfo {
         this.depositorAddress = depositorAddress;
     }
 
-    /**
-     * 根据抵押编号获取抵押详细信息
-     * @param depositNumber
-     * @return
-     */
-    public DepositDetailInfo getDepositDetailInfoByNumber(long depositNumber){
-        DepositDetailInfo info=depositDetailInfos.get(depositNumber);
-        require(info != null, "未找到此抵押编号的抵押详细信息");
-        return info;
-    }
-
-    /**
-     *
-     * @param depositNumber
-     */
-    public void removeDepositDetailInfoByNumber(long depositNumber){
-        depositDetailInfos.remove(depositNumber);
-    }
-
     public void clearDepositDetailInfos(){
-        depositDetailInfos.clear();
         depositCount=0;
         depositTotalAmount=BigInteger.ZERO;
     }
-
 
     @Override
     public String toString(){
         return  "{depositTotalAmount:"+depositTotalAmount+",depositAvailableTotalAmount:"+depositAvailableTotalAmount
                 +",depositLockedTotalAmount:"+depositLockedTotalAmount+",depositorAddress:"+depositorAddress
-                +",depositCount:"+depositCount+",depositDetailInfos:"+convertMapToString()+"}";
-    }
-
-    private  String convertMapToString(){
-        String detailinfo ="{";
-        String temp="";
-        for (Long key : depositDetailInfos.keySet()) {
-            DepositDetailInfo detailInfo=  depositDetailInfos.get(key);
-            temp =detailInfo.toString();
-            detailinfo=detailinfo+temp+",";
-        }
-        detailinfo=detailinfo.substring(0,detailinfo.length()-1);
-        detailinfo=detailinfo+"}";
-
-        return detailinfo;
+                +",depositCount:"+depositCount+",depositDetailInfo:"+depositDetailInfo.toString()+"}";
     }
 
 }

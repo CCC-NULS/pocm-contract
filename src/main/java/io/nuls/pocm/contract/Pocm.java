@@ -113,9 +113,6 @@ public class Pocm extends Ownable implements Contract {
     //已经分配的Token数量
     private BigInteger allocationAmount=BigInteger.ZERO;
 
-    //未领取的Token数量
-    private BigInteger unRewardsAmount=BigInteger.ZERO;
-
     private  boolean isGetTotal=false;
     //是否接受抵押
     private boolean isAcceptDeposit=false;
@@ -237,37 +234,45 @@ public class Pocm extends Ownable implements Contract {
         BigInteger value = new BigInteger(agentInfo[3]);
         emit(new AgentEvent(agentHash,value));
 
-        //将共识节点创建者的委托金额加入委托中，参与Token奖励的分配
-        //总Token额度大于零，表示已经为此POCM分配了Token，则要检查可领取的Token数量是否足够，若为0表示还没有分配
-       // if(totalAllocation.compareTo(BigInteger.ZERO)>0){
-       //     require(whetherAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再添加新的共识节点");
-       // }
-
-        //BigInteger rewardsAmount= this.allocationAmount.add(this.unRewardsAmount);
-
-
         long currentHeight = Block.number();
-        long depositNumber = NUMBER++;
-        ConsensusAgentDepositInfo agentDepositInfo=new ConsensusAgentDepositInfo(agentHash,agentAddress,depositNumber);
 
         DepositInfo info = depositUsers.get(agentAddress);
+        long depositNumber;
         if (info == null) {
+            depositNumber = NUMBER++;
             info = new DepositInfo();
             depositUsers.put(agentAddress, info);
-        }
 
-        DepositDetailInfo detailInfo = new DepositDetailInfo();
-        detailInfo.setDepositAmount(value, FULL_PERCENT);
-        detailInfo.setDepositHeight(currentHeight);
-        detailInfo.setMiningAddress(agentAddress);
-        detailInfo.setDepositNumber(depositNumber);
-        info.setDepositorAddress(agentAddress);
-        info.getDepositDetailInfos().put(depositNumber, detailInfo);
-        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),FULL_PERCENT);
-        info.setDepositCount(info.getDepositCount() + 1);
+            DepositDetailInfo detailInfo = new DepositDetailInfo();
+            detailInfo.setDepositAmount(value,FULL_PERCENT);
+            detailInfo.setDepositHeight(currentHeight);
+            detailInfo.setMiningAddress(agentAddress);
+            detailInfo.setDepositNumber(depositNumber);
+
+            info.setDepositDetailInfo(detailInfo);
+            info.setDepositorAddress(agentAddress);
+            info.setDepositTotalAmount(value,FULL_PERCENT);
+            info.setDepositCount(1);
+        }else{
+            //存在抵押记录，领取奖励
+            List<CurrentMingInfo> mingInfosList=this.receive(info,true);
+            if(mingInfosList!=null && mingInfosList.size()>0){
+                emit(new CurrentMiningInfoEvent(mingInfosList));
+            }
+            //更新抵押信息
+            DepositDetailInfo detailInfo=info.getDepositDetailInfo();
+            detailInfo.setDepositAmount(detailInfo.getDepositAmount().add(value),FULL_PERCENT);
+            detailInfo.setDepositHeight(currentHeight);
+            detailInfo.setMiningAddress(agentAddress);
+            depositNumber=detailInfo.getDepositNumber();
+
+            info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),FULL_PERCENT);
+            info.setDepositCount(info.getDepositCount() + 1);
+        }
+        ConsensusAgentDepositInfo agentDepositInfo=new ConsensusAgentDepositInfo(agentHash,agentAddress,depositNumber);
 
         //将抵押数加入队列中
-        this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
+        this.putDepositToMap(value, currentHeight);
         agentDeposits.put(agentHash,agentDepositInfo);
         //记录第一笔抵押的高度
         if(firstDepositHeight == 0){
@@ -297,38 +302,27 @@ public class Pocm extends Ownable implements Contract {
         MiningInfo miningInfo = mingUsers.get(userAddress);
         require(miningInfo != null, "没有该共识节点的创建者抵押挖矿的挖矿信息");
         DepositInfo depositInfo = getDepositInfo(userAddress);
-        long number=agentDepositInfo.getDepositNumber();
-        if(number!=0){
-            //检查该抵押编号的记录是否存在
-            depositInfo.getDepositDetailInfoByNumber(number);
-        }
-        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,number,true);
+
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,true);
 
 
         //2.共识节点的创建者退出
-        DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfoByNumber(number);
+        DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfo();
         long currentHeight = Block.number();
         List<Long> depositNumbers =new ArrayList<Long>();
         //删除挖矿信息
-        miningInfo = mingUsers.get(detailInfo.getMiningAddress());
-        miningInfo.removeMiningDetailInfoByNumber(number);
-        if (miningInfo.getMiningDetailInfos().size() == 0) {
-            mingUsers.remove(detailInfo.getMiningAddress());
-        }
-        depositInfo.removeDepositDetailInfoByNumber(number);
+        mingUsers.remove(detailInfo.getMiningAddress());
+        depositUsers.remove(userAddress);
+
         // 退押金
         depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()),FULL_PERCENT);
         //从队列中退出抵押金额
         this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
-        depositNumbers.add(number);
-        if (depositInfo.getDepositDetailInfos().size() == 0) {
-            depositUsers.remove(userAddress);
-        }
+        depositNumbers.add(detailInfo.getDepositNumber());
         agentDeposits.remove(agentHash);
 
         emit(new CurrentMiningInfoEvent(mingInfosList));
         emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
-
     }
 
     /**
@@ -359,31 +353,48 @@ public class Pocm extends Ownable implements Contract {
         require(isAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
         String userStr = Msg.sender().toString();
         DepositInfo info = depositUsers.get(userStr);
+        BigInteger value = Msg.value();
+        long currentHeight = Block.number();
+        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS");
+        long depositNumber=0;
         if (info == null) {
+            depositNumber = NUMBER++;
             if (maximumDepositAddressCount > 0) {
                 require(totalDepositAddressCount + 1 <= maximumDepositAddressCount, "超过最大抵押地址数量");
             }
             info = new DepositInfo();
             depositUsers.put(userStr, info);
             totalDepositAddressCount += 1;
-        }
-        BigInteger value = Msg.value();
-        long currentHeight = Block.number();
-        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS");
-        long depositNumber = NUMBER++;
 
-        DepositDetailInfo detailInfo = new DepositDetailInfo();
-        detailInfo.setDepositAmount(value,AVAILABLE_PERCENT);
-        detailInfo.setDepositHeight(currentHeight);
-        detailInfo.setMiningAddress(userStr);
-        detailInfo.setDepositNumber(depositNumber);
-        info.setDepositorAddress(userStr);
-        info.getDepositDetailInfos().put(depositNumber, detailInfo);
-        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),AVAILABLE_PERCENT);
-        info.setDepositCount(info.getDepositCount() + 1);
+            DepositDetailInfo detailInfo = new DepositDetailInfo();
+            detailInfo.setDepositAmount(value,AVAILABLE_PERCENT);
+            detailInfo.setDepositHeight(currentHeight);
+            detailInfo.setMiningAddress(userStr);
+            detailInfo.setDepositNumber(depositNumber);
+
+            info.setDepositDetailInfo(detailInfo);
+            info.setDepositorAddress(userStr);
+            info.setDepositTotalAmount(value,AVAILABLE_PERCENT);
+            info.setDepositCount(1);
+        }else{
+            //存在抵押记录，领取奖励
+            List<CurrentMingInfo> mingInfosList=this.receive(info,true);
+            emit(new CurrentMiningInfoEvent(mingInfosList));
+            //更新抵押信息
+            DepositDetailInfo detailInfo=info.getDepositDetailInfo();
+            detailInfo.setDepositAmount(detailInfo.getDepositAmount().add(value),AVAILABLE_PERCENT);
+            detailInfo.setDepositHeight(currentHeight);
+            detailInfo.setMiningAddress(userStr);
+            depositNumber=detailInfo.getDepositNumber();
+            info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),AVAILABLE_PERCENT);
+            info.setDepositCount(info.getDepositCount() + 1);
+        }
+
+        BigDecimal bigDecimalValue =new BigDecimal(value);
+        BigInteger availableDepositValue = AVAILABLE_PERCENT.multiply(bigDecimalValue).toBigInteger();
 
         //将抵押数加入队列中
-        this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
+        this.putDepositToMap(availableDepositValue, currentHeight);
 
         //记录第一笔抵押的高度
         if(firstDepositHeight==0){
@@ -392,57 +403,8 @@ public class Pocm extends Ownable implements Contract {
 
         //初始化挖矿信息
         initMingInfo(currentHeight, userStr, userStr, depositNumber);
-        totalDepositManager.add(detailInfo.getAvailableAmount());
-        emit(new DepositDetailInfoEvent(detailInfo));
-    }
-
-    /**
-     * 为他人抵押挖取Token
-     *
-     * @param miningAddress 指定挖出Token的接受地址
-     * @return
-     */
-    @Payable
-    public void depositForOther(@Required Address miningAddress) {
-        require(isAllocationToken(),"此POCM合约未预分配Token,暂不接受抵押");
-        require(isAcceptDeposit(),"预分配的Token数量已经奖励完毕，不再接受抵押");
-        String userStr = Msg.sender().toString();
-        DepositInfo info = depositUsers.get(userStr);
-        if (info == null) {
-            if (maximumDepositAddressCount > 0) {
-                require(totalDepositAddressCount + 1 <= maximumDepositAddressCount, "超过最大抵押地址数量");
-            }
-            info = new DepositInfo();
-            depositUsers.put(userStr, info);
-            totalDepositAddressCount += 1;
-        }
-
-        BigInteger value = Msg.value();
-        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS");
-        long depositNumber = NUMBER++;
-        long currentHeight = Block.number();
-        DepositDetailInfo detailInfo = new DepositDetailInfo();
-        detailInfo.setDepositAmount(value,AVAILABLE_PERCENT);
-        detailInfo.setDepositHeight(currentHeight);
-        detailInfo.setMiningAddress(miningAddress.toString());
-        detailInfo.setDepositNumber(depositNumber);
-        info.setDepositorAddress(userStr);
-        info.getDepositDetailInfos().put(depositNumber, detailInfo);
-        info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),AVAILABLE_PERCENT);
-        info.setDepositCount(info.getDepositCount() + 1);
-
-        //将抵押数加入队列中
-        this.putDepositToMap(detailInfo.getAvailableAmount(), currentHeight);
-
-        //记录第一笔抵押的高度
-        if(firstDepositHeight==0){
-            firstDepositHeight=currentHeight;
-        }
-
-        //初始化挖矿信息
-        initMingInfo(currentHeight, miningAddress.toString(), userStr, depositNumber);
-        totalDepositManager.add(detailInfo.getAvailableAmount());
-        emit(new DepositDetailInfoEvent(detailInfo));
+        totalDepositManager.add(availableDepositValue);
+        emit(new DepositDetailInfoEvent(info.getDepositDetailInfo()));
     }
 
     /**
@@ -453,73 +415,41 @@ public class Pocm extends Ownable implements Contract {
      */
     public void quit(String number) {
         long currentHeight = Block.number();
-        long depositNumber = 0;
-        if (number != null && number.trim().length() > 0) {
-            require(canConvertNumeric(number.trim(), String.valueOf(Long.MAX_VALUE)), "抵押编号输入不合法，应该输入数字字符");
-            depositNumber = Long.valueOf(number.trim());
-        }
         Address user = Msg.sender();
         String userString = user.toString();
         DepositInfo depositInfo = getDepositInfo(userString);
 
-        BigInteger depositAvailableTotalAmount;
-        BigInteger depositTotalAmount;
-        MiningInfo miningInfo;
         List<Long> depositNumbers =new ArrayList<Long>();
-        List<CurrentMingInfo> mingInfosList;
 
-        //表示退出全部的抵押
-        if (depositNumber == 0) {
-            // 发放所有抵押的奖励
-            mingInfosList=this.receive(depositInfo, 0,true);
+        // 发放指定抵押编号的奖励
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,true);
 
-            long result = checkAllDepositLocked(depositInfo);
-            require(result == -1, "挖矿的NULS没有全部解锁");
-            depositAvailableTotalAmount = depositInfo.getDepositAvailableTotalAmount();
-            depositTotalAmount=depositInfo.getDepositTotalAmount();
-            Map<Long, DepositDetailInfo> depositDetailInfos = depositInfo.getDepositDetailInfos();
-            delMingInfo(depositDetailInfos);
-            //从队列中退出抵押金额
-            Iterator<Map.Entry<Long, DepositDetailInfo>> iterator =depositDetailInfos.entrySet().iterator();
-            while(iterator.hasNext()){
-                Map.Entry<Long, DepositDetailInfo> iterInfo = iterator.next();
-                DepositDetailInfo detailInfo = iterInfo.getValue();
-                this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
-                depositNumbers.add(iterInfo.getKey());
-            }
-            depositInfo.clearDepositDetailInfos();
-        } else {
-            // 发放指定抵押编号的奖励
-            mingInfosList=this.receive(depositInfo, depositNumber,true);
+        //退出某一次抵押
+        DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfo();
+        long unLockedHeight = checkDepositLocked(detailInfo);
+        require(unLockedHeight == -1, "挖矿锁定中, 解锁高度是 " + unLockedHeight);
 
-            //退出某一次抵押
-            DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfoByNumber(depositNumber);
-            long unLockedHeight = checkDepositLocked(detailInfo);
-            require(unLockedHeight == -1, "挖矿锁定中, 解锁高度是 " + unLockedHeight);
-            //删除挖矿信息
-            miningInfo = mingUsers.get(detailInfo.getMiningAddress());
-            miningInfo.removeMiningDetailInfoByNumber(depositNumber);
-            if (miningInfo.getMiningDetailInfos().size() == 0) {
-                mingUsers.remove(detailInfo.getMiningAddress());
-            }
-            depositInfo.removeDepositDetailInfoByNumber(depositNumber);
-            // 退押金
-            depositAvailableTotalAmount = detailInfo.getAvailableAmount();
-            depositTotalAmount=detailInfo.getDepositAmount();
-            depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()),AVAILABLE_PERCENT);
-            depositInfo.setDepositCount(depositInfo.getDepositCount() - 1);
-            //从队列中退出抵押金额
-            this.quitDepositToMap(depositAvailableTotalAmount, currentHeight, detailInfo.getDepositHeight());
-            depositNumbers.add(depositNumber);
-        }
+        //删除挖矿信息
+        mingUsers.remove(detailInfo.getMiningAddress());
+
+        // 退押金
+        BigInteger depositAvailableTotalAmount = detailInfo.getAvailableAmount();
+        BigInteger depositTotalAmount=detailInfo.getDepositAmount();
+        depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()),AVAILABLE_PERCENT);
+        depositInfo.setDepositCount(depositInfo.getDepositCount() - 1);
+        //从队列中退出抵押金额
+        this.quitDepositToMap(depositAvailableTotalAmount, currentHeight, detailInfo.getDepositHeight());
+        depositNumbers.add(detailInfo.getDepositNumber());
+
         boolean isEnoughBalance = totalDepositManager.subtract(depositAvailableTotalAmount);
         require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + depositAvailableTotalAmount);
-        if (depositInfo.getDepositDetailInfos().size() == 0) {
-            totalDepositAddressCount -= 1;
-            //TODO 退出后是否保留该账户的挖矿记录
-            depositUsers.remove(userString);
+
+        this.totalDepositAddressCount -= 1;
+        depositUsers.remove(userString);
+
+        if(mingInfosList!=null&&mingInfosList.size()>0){
+            emit(new CurrentMiningInfoEvent(mingInfosList));
         }
-        emit(new CurrentMiningInfoEvent(mingInfosList));
         emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
         user.transfer(depositTotalAmount);
     }
@@ -538,18 +468,11 @@ public class Pocm extends Ownable implements Contract {
 
         BigInteger depositAvailableTotalAmount = depositInfo.getDepositAvailableTotalAmount();
         BigInteger depositTotalAmount=depositInfo.getDepositTotalAmount();
-        Map<Long, DepositDetailInfo> depositDetailInfos = depositInfo.getDepositDetailInfos();
-        delMingInfo(depositDetailInfos);
-        //从队列中退出抵押金额
-        Iterator<Map.Entry<Long, DepositDetailInfo>> iterator =depositDetailInfos.entrySet().iterator();
-        while(iterator.hasNext()){
-            Map.Entry<Long, DepositDetailInfo> iterInfo = iterator.next();
-            DepositDetailInfo detailInfo = iterInfo.getValue();
-            this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
-            depositNumbers.add(iterInfo.getKey());
-        }
+        DepositDetailInfo depositDetailInfo = depositInfo.getDepositDetailInfo();
+        mingUsers.remove(depositDetailInfo.getMiningAddress());
+        this.quitDepositToMap(depositDetailInfo.getAvailableAmount(), currentHeight, depositDetailInfo.getDepositHeight());
+        depositNumbers.add(depositDetailInfo.getDepositNumber());
 
-        depositInfo.clearDepositDetailInfos();
         totalDepositAddressCount -= 1;
         depositUsers.remove(userString);
 
@@ -565,23 +488,14 @@ public class Pocm extends Ownable implements Contract {
      * @param depositNumber 抵押编号，若为0表示领取所有抵押交易的奖励
      */
     public void receiveAwards(String depositNumber) {
-        long number = 0;
-        if (depositNumber != null && depositNumber.trim().length() > 0) {
-            require(canConvertNumeric(depositNumber.trim(), String.valueOf(Long.MAX_VALUE)), "抵押编号输入不合法，应该输入数字字符");
-            number = Long.valueOf(depositNumber.trim());
-        }
         String userAddress = Msg.sender().toString();
         MiningInfo miningInfo = mingUsers.get(userAddress);
-
         require(miningInfo != null, "没有为自己抵押挖矿的挖矿信息");
         DepositInfo depositInfo = getDepositInfo(userAddress);
-        if(number!=0){
-            //检查该抵押编号的记录是否存在
-            depositInfo.getDepositDetailInfoByNumber(number);
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,true);
+        if(mingInfosList!=null&&mingInfosList.size()>0){
+            emit(new CurrentMiningInfoEvent(mingInfosList));
         }
-
-        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,number,true);
-        emit(new CurrentMiningInfoEvent(mingInfosList));
     }
 
     /**
@@ -594,7 +508,7 @@ public class Pocm extends Ownable implements Contract {
             while (iter.hasNext()){
                 DepositInfo depositInfo=iter.next();
                 if(depositInfo!=null){
-                    List<CurrentMingInfo> mingInfosListTmp= this.receive(depositInfo,0,false);
+                    List<CurrentMingInfo> mingInfosListTmp= this.receive(depositInfo,false);
                     if(mingInfosListTmp!=null){
                         mingInfosList.addAll(mingInfosListTmp);
                     }
@@ -606,11 +520,13 @@ public class Pocm extends Ownable implements Contract {
             totalDepositList.clear();
             totalDepositIndex.clear();
             totalDepositList.add(lastCycleInfo1);
-            totalDepositIndex.put(lastCycleInfo1.getRewardingCylce(), totalDepositList.size() - 1);
+            totalDepositIndex.put(lastCycleInfo1.getRewardingCylce(), 01);
             totalDepositList.add(lastCycleInfo2);
-            totalDepositIndex.put(this.lastCalcCycle, totalDepositList.size() - 1);
+            totalDepositIndex.put(this.lastCalcCycle,1);
         }
-        emit(new CurrentMiningInfoEvent(mingInfosList));
+        if(mingInfosList!=null&&mingInfosList.size()>0){
+            emit(new CurrentMiningInfoEvent(mingInfosList));
+        }
     }
 
     /**
@@ -619,26 +535,15 @@ public class Pocm extends Ownable implements Contract {
      * @return
      */
     public void receiveAwardsForMiningAddress() {
-        List<String> alreadyReceive = new ArrayList<String>();
         Address user = Msg.sender();
         MiningInfo info = mingUsers.get(user.toString());
         require(info != null, "没有替" + user.toString() + "用户抵押挖矿的挖矿信息");
-        Map<Long, MiningDetailInfo> detailInfos = info.getMiningDetailInfos();
-        List<CurrentMingInfo> mergemingInfosList =new ArrayList<CurrentMingInfo>();
-
-        Iterator<MiningDetailInfo> iterator = detailInfos.values().iterator();
-        while(iterator.hasNext()){
-            MiningDetailInfo detailInfo = iterator.next();
-            if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
-                DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
-                List<CurrentMingInfo> mingInfosList=this.receive(depositInfo, 0,true);
-                alreadyReceive.add(detailInfo.getDepositorAddress());
-                if(mingInfosList!=null && mingInfosList.size()>0){
-                    mergemingInfosList.addAll(mingInfosList);
-                }
-            }
+        MiningDetailInfo detailInfo = info.getMiningDetailInfo();
+        DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
+        List<CurrentMingInfo> mingInfosList=this.receive(depositInfo ,true);
+        if(mingInfosList!=null && mingInfosList.size()>0){
+            emit(new CurrentMiningInfoEvent(mingInfosList));
         }
-        emit(new CurrentMiningInfoEvent(mergemingInfosList));
     }
 
     /**
@@ -662,7 +567,7 @@ public class Pocm extends Ownable implements Contract {
                 while (iter.hasNext()){
                     DepositInfo depositInfo=iter.next();
                     if(depositInfo!=null){
-                        amountTmp=amountTmp.add(this.calcUnReceiceMining(depositInfo,null,0));
+                        amountTmp=amountTmp.add(this.calcUnReceiceMining(depositInfo,null));
                     }
                 }
                 result=this.totalAllocation.subtract(this.allocationAmount).subtract(amountTmp);
@@ -688,21 +593,12 @@ public class Pocm extends Ownable implements Contract {
      */
     @View
     public String calcUnReceiveAwards(@Required Address depositorAddress,String depositNumber){
-        long number = 0;
-        if (depositNumber != null && depositNumber.trim().length() > 0) {
-            require(canConvertNumeric(depositNumber.trim(), String.valueOf(Long.MAX_VALUE)), "抵押编号输入不合法，应该输入数字字符");
-            number = Long.valueOf(depositNumber.trim());
-        }
         String address =depositorAddress.toString();
         DepositInfo depositInfo = getDepositInfo(address);
-        if(number!=0){
-            //检查该抵押编号的记录是否存在
-            depositInfo.getDepositDetailInfoByNumber(number);
-        }
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
        // this.whetherAcceptDeposit();
 
-        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,null,number);
+        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,null);
         return unReceiveAwards.toString();
     }
 
@@ -716,7 +612,7 @@ public class Pocm extends Ownable implements Contract {
         DepositInfo depositInfo = getDepositInfo(address);
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
        // this.whetherAcceptDeposit();
-        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,address,0);
+        BigInteger unReceiveAwards =this.calcUnReceiceMining(depositInfo,address);
         return unReceiveAwards.toString();
     }
 
@@ -729,22 +625,13 @@ public class Pocm extends Ownable implements Contract {
     public String calcUnReceiveAwardsForMiningAddress(@Required Address receiverMiningAddress){
         BigInteger unReceiveAwards=BigInteger.ZERO;
         String address =receiverMiningAddress.toString();
-        List<String> alreadyReceive = new ArrayList<String>();
         MiningInfo miningInfo = mingUsers.get(address);
         require(miningInfo != null, "没有替" + address + "用户抵押挖矿的挖矿信息");
-        Map<Long, MiningDetailInfo> detailInfos = miningInfo.getMiningDetailInfos();
+        MiningDetailInfo detailInfo = miningInfo.getMiningDetailInfo();
         //在领取之前，如果已经不接收抵押了，则不再计算未领取的Token数量，已最后一次计算的未领取奖励token数
         //this.whetherAcceptDeposit();
-
-        Iterator<MiningDetailInfo> iterator =detailInfos.values().iterator();
-        while(iterator.hasNext()){
-            MiningDetailInfo detailInfo =  iterator.next();
-            if (!alreadyReceive.contains(detailInfo.getDepositorAddress())) {
-                DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
-                unReceiveAwards =unReceiveAwards.add(this.calcUnReceiceMining(depositInfo,address,0));
-                alreadyReceive.add(detailInfo.getDepositorAddress());
-            }
-        }
+        DepositInfo depositInfo = getDepositInfo(detailInfo.getDepositorAddress());
+        unReceiveAwards =unReceiveAwards.add(this.calcUnReceiceMining(depositInfo,address));
         return  unReceiveAwards.toString();
     }
 
@@ -804,27 +691,6 @@ public class Pocm extends Ownable implements Contract {
     /**
      * 检查抵押是否在锁定中
      *
-     * @param depositInfo
-     * @return
-     */
-    private long checkAllDepositLocked(DepositInfo depositInfo) {
-        long result;
-        Map<Long, DepositDetailInfo> infos = depositInfo.getDepositDetailInfos();
-
-        Iterator<DepositDetailInfo> iterator =infos.values().iterator();
-        while(iterator.hasNext()){
-            DepositDetailInfo iterInfo = iterator.next();
-            result = checkDepositLocked(iterInfo);
-            if (result != -1) {
-                return result;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * 检查抵押是否在锁定中
-     *
      * @param detailInfo
      * @return
      */
@@ -845,15 +711,14 @@ public class Pocm extends Ownable implements Contract {
      * @param depositInfo
      * @return 返回请求地址的挖矿信息
      */
-    private List<CurrentMingInfo> receive(DepositInfo depositInfo,long depositNumber,Boolean isTranfer) {
+    private List<CurrentMingInfo> receive(DepositInfo depositInfo,Boolean isTranfer) {
         Map<String, BigInteger> mingResult = new HashMap<String, BigInteger>();
         //预分配的Token已经奖励完，不再进行奖励计算
         if(allocationAmount.compareTo(totalAllocation)==0){
             return null;
         }
-
         // 奖励计算, 计算每次挖矿的高度是否已达到奖励减半周期的范围，若达到，则当次奖励减半，以此类推
-        List<CurrentMingInfo> mingInfosList = this.calcMining(depositInfo, mingResult,depositNumber,isTranfer);
+        List<CurrentMingInfo> mingInfosList = this.calcMining(depositInfo, mingResult,isTranfer);
          if(isTranfer){
             Set<Map.Entry<String, BigInteger>> entrySet=mingResult.entrySet();
             Iterator<Map.Entry<String, BigInteger>> iterator =entrySet.iterator();
@@ -881,131 +746,62 @@ public class Pocm extends Ownable implements Contract {
      *
      * @param depositInfo
      * @param mingResult
-     * @param depositNumber
      * @return
      */
-    private List<CurrentMingInfo> calcMining(DepositInfo depositInfo, Map<String, BigInteger> mingResult,long depositNumber,Boolean isTranfer) {
+    private List<CurrentMingInfo> calcMining(DepositInfo depositInfo, Map<String, BigInteger> mingResult,Boolean isTranfer) {
         List<CurrentMingInfo> mingInfosList=new ArrayList<CurrentMingInfo>();
         long currentHeight = Block.number();
         int currentRewardCycle = this.calcRewardCycle(currentHeight);
         //将上一个奖励周期的总抵押数更新至当前奖励周期的总抵押数
-        this.moveLastDepositToCurrentCycle(currentHeight);
-        Map<Long, DepositDetailInfo> detailInfos = depositInfo.getDepositDetailInfos();
-
-        //若指定了抵押编号，则只计算此抵押编号的奖励收益
-        if(depositNumber!=0){
-            DepositDetailInfo detailInfo = detailInfos.get(depositNumber);
-            MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
-            MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
-            int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
-            BigInteger miningTmp =BigInteger.ZERO;
-            //达到领取奖励的高度
-            if (nextStartMiningCycle <= currentRewardCycle) {
-                //已经分配完毕
-                if(this.isAcceptDeposit){
-                    BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
-                    BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-                    miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
-                }
-
-                if(isTranfer){
-                    //将后台领取但未发放的加上
-                    BigInteger miningValue=miningTmp.add(mingDetailInfo.getUnTranferReceivedMining());
-                    //Token数量不够分配
-                    if(miningValue.add(this.allocationAmount).compareTo(this.totalAllocation)>=0){
-                        this.isAcceptDeposit=false;
-                        miningValue=this.totalAllocation.subtract(this.allocationAmount);
-                    }
-                    int currentMiningCount=currentRewardCycle - nextStartMiningCycle + 1;
-                    CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,
-                            detailInfo.getDepositNumber(),miningValue,currentMiningCount,currentRewardCycle + 1);
-                    mingInfosList.add(currentMingInfo);
-                }else{
-                    //后台领取但是不发放，暂时记录下来
-                    mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
-                    mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
-                    mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
-                    //封装当次的挖矿信息
-                    CurrentMingInfo currentMingInfo= new CurrentMingInfo();
-                    currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
-                    currentMingInfo.setMiningAmount(miningTmp);
-                    currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
-                    currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
-                    mingInfosList.add(currentMingInfo);
-                }
-            }else if(isTranfer){
-                BigInteger miningValue=mingDetailInfo.getUnTranferReceivedMining();
-                //如果未达到下一次领取周期，但是有未发放的奖励，说明后台刚刚触发了统一领取
-                if(miningValue.compareTo(BigInteger.ZERO)>0){
-                    int currentMiningCount=0;
-                    //下一次奖励的开始周期不变
-                    CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,
-                            detailInfo.getDepositNumber(),miningValue,currentMiningCount,mingDetailInfo.getNextStartMiningCycle());
-                    mingInfosList.add(currentMingInfo);
-                }
+        this.moveLastDepositToCurrentCycle(currentHeight,currentRewardCycle);
+        DepositDetailInfo detailInfo=depositInfo.getDepositDetailInfo();
+        MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
+        MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfo();
+        int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
+        BigInteger miningTmp =BigInteger.ZERO;
+        //达到领取奖励的高度
+        if (nextStartMiningCycle <= currentRewardCycle) {
+            //已经分配完毕
+            if(this.isAcceptDeposit){
+                BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
+                BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
+                miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
             }
-        }else{
-            BigInteger miningSum=this.allocationAmount;
-            //若未指定抵押编号，则只计算所有抵押的奖励收益
-            Iterator<DepositDetailInfo> iterator =detailInfos.values().iterator();
-            while(iterator.hasNext()){
-                DepositDetailInfo detailInfo = iterator.next();
-                MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
-                MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
-                int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
-                //说明未到领取奖励的高度
-                if (nextStartMiningCycle > currentRewardCycle) {
-                    BigInteger miningValue=mingDetailInfo.getUnTranferReceivedMining();
-                    //如果未达到下一次领取周期，但是有未发放的奖励（说明后台刚刚触发了统一领取）并且是投资者触发的
-                    if(isTranfer && miningValue.compareTo(BigInteger.ZERO)>0){
-                        int currentMiningCount=0;
-                        //下一次奖励的开始周期不变
-                        CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,
-                                detailInfo.getDepositNumber(),miningValue,currentMiningCount,mingDetailInfo.getNextStartMiningCycle());
-                        mingInfosList.add(currentMingInfo);
-                    }
-                    continue;
-                }
-/*                if(mingDetailInfo.isRewardsEnd()){
-                    //表示该抵押已经领取过最后一笔奖励,不能再领取
-                    continue;
-                }*/
-                BigInteger miningTmp =BigInteger.ZERO;
-                //已经分配完毕
-                if(this.isAcceptDeposit){
-                    BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
-                    BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-                    miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
 
+            if(isTranfer){
+                //将后台领取但未发放的加上
+                BigInteger miningValue=miningTmp.add(mingDetailInfo.getUnTranferReceivedMining());
+                //Token数量不够分配
+                if(miningValue.add(this.allocationAmount).compareTo(this.totalAllocation)>=0){
+                    this.isAcceptDeposit=false;
+                    miningValue=this.totalAllocation.subtract(this.allocationAmount);
                 }
-
-                if(isTranfer){
-                    //将后台领取但未发放的加上
-                    BigInteger miningValue=miningTmp.add(mingDetailInfo.getUnTranferReceivedMining());
-                    //Token数量不够分配
-                    if(miningSum.add(miningValue).compareTo(this.totalAllocation)>=0){
-                        this.isAcceptDeposit=false;
-                        miningValue=this.totalAllocation.subtract(miningSum);
-                    }
-                    miningSum=miningSum.add(miningValue);
-
-                    int currentMiningCount=currentRewardCycle - nextStartMiningCycle + 1;
-                    CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,detailInfo.getDepositNumber(),miningValue,
-                            currentMiningCount,currentRewardCycle + 1);
-                    mingInfosList.add(currentMingInfo);
-                }else{
-                    //后台领取但是不发放，暂时记录下来
-                    mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
-                    mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
-                    mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
-                    //封装当次的挖矿信息
-                    CurrentMingInfo currentMingInfo= new CurrentMingInfo();
-                    currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
-                    currentMingInfo.setMiningAmount(miningTmp);
-                    currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
-                    currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
-                    mingInfosList.add(currentMingInfo);
-                }
+                int currentMiningCount=currentRewardCycle - nextStartMiningCycle + 1;
+                CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,
+                        detailInfo.getDepositNumber(),miningValue,currentMiningCount,currentRewardCycle + 1);
+                mingInfosList.add(currentMingInfo);
+            }else{
+                //后台领取但是不发放，暂时记录下来
+                mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
+                mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
+                mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
+                //封装当次的挖矿信息
+                CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+                currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+                currentMingInfo.setMiningAmount(miningTmp);
+                currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
+                currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+                mingInfosList.add(currentMingInfo);
+            }
+        }else if(isTranfer){
+            BigInteger miningValue=mingDetailInfo.getUnTranferReceivedMining();
+            //如果未达到下一次领取周期，但是有未发放的奖励，说明后台刚刚触发了统一领取
+            if(miningValue.compareTo(BigInteger.ZERO)>0){
+                int currentMiningCount=0;
+                //下一次奖励的开始周期不变
+                CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,
+                        detailInfo.getDepositNumber(),miningValue,currentMiningCount,mingDetailInfo.getNextStartMiningCycle());
+                mingInfosList.add(currentMingInfo);
             }
         }
         return mingInfosList;
@@ -1042,67 +838,39 @@ public class Pocm extends Ownable implements Contract {
      * 计算未获取的收益
      * @param depositInfo
      * @param receiceAddress 接收奖励的地址,若为null表示计算所有接收奖励的地址
-     * @param depositNumber  抵押编号，若为0表示不限制抵押编号
      * @return
      */
-    private BigInteger calcUnReceiceMining(DepositInfo depositInfo,String receiceAddress,long depositNumber){
+    private BigInteger calcUnReceiceMining(DepositInfo depositInfo,String receiceAddress){
         BigInteger mining = BigInteger.ZERO;
         long currentHeight = Block.number();
         int currentRewardCycle = this.calcRewardCycle(currentHeight);
         int firstRewardCycle = this.calcRewardCycle(firstDepositHeight);
-        if(currentRewardCycle-firstRewardCycle<2){
-            //若距离第一笔抵押还未过2个奖励周期，则没有奖励可以领取，直接返回0
+        if(currentRewardCycle<=firstRewardCycle){
+            //若距离第一笔抵押还未过1个奖励周期，则没有奖励可以领取，直接返回0
             return mining;
         }
 
         //将上一个奖励周期的总抵押数更新至当前奖励周期的总抵押数
-        this.moveLastDepositToCurrentCycle(currentHeight);
-        Map<Long, DepositDetailInfo> detailInfos = depositInfo.getDepositDetailInfos();
-
-        Set<Map.Entry<Long, DepositDetailInfo>> entrySet=detailInfos.entrySet();
-        Iterator<Map.Entry<Long, DepositDetailInfo>> iterator =entrySet.iterator();
-        while(iterator.hasNext()){
-            Map.Entry<Long, DepositDetailInfo> infoIter = iterator.next();
-            //若指定了抵押编号，则只计算此抵押编号的奖励收益
-            if(depositNumber!=0 && infoIter.getKey()!=depositNumber){
-                continue;
-            }
-            DepositDetailInfo detailInfo = infoIter.getValue();
-
-            //只计算指定address的收益
-            if(receiceAddress!=null && !detailInfo.getMiningAddress().equals(receiceAddress)){
-                continue;
-            }
-            MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
-            MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
-            int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
-            //说明未到领取奖励的高度
-            if (nextStartMiningCycle > currentRewardCycle) {
-                mining = mining.add(mingDetailInfo.getUnTranferReceivedMining());
-                continue;
-            }
-            BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
-            BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
-            BigInteger miningTmp =availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
-            mining = mining.add(miningTmp).add(mingDetailInfo.getUnTranferReceivedMining());
+        this.moveLastDepositToCurrentCycle(currentHeight,currentRewardCycle);
+        DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfo();
+        //只计算指定address的收益
+        if(receiceAddress!=null && !detailInfo.getMiningAddress().equals(receiceAddress)){
+            return mining;
         }
+        MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
+
+        MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfo();
+        int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
+        //说明未到领取奖励的高度
+        if (nextStartMiningCycle > currentRewardCycle) {
+            mining = mining.add(mingDetailInfo.getUnTranferReceivedMining());
+            return mining;
+        }
+        BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
+        BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
+        BigInteger miningTmp =availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
+        mining = mining.add(miningTmp).add(mingDetailInfo.getUnTranferReceivedMining());
         return mining;
-    }
-
-    /**
-     * 删除挖矿信息
-     *
-     * @param infos
-     */
-    private void delMingInfo(Map<Long, DepositDetailInfo> infos) {
-        for (Long key : infos.keySet()) {
-            DepositDetailInfo detailInfo = infos.get(key);
-            MiningInfo miningInfo = mingUsers.get(detailInfo.getMiningAddress());
-            miningInfo.removeMiningDetailInfoByNumber(detailInfo.getDepositNumber());
-            if (miningInfo.getMiningDetailInfos().size() == 0) {
-                mingUsers.remove(detailInfo.getMiningAddress());
-            }
-        }
     }
 
     /**
@@ -1114,17 +882,18 @@ public class Pocm extends Ownable implements Contract {
      * @return
      */
     private void initMingInfo(long currentHeight, String miningAddress, String depositorAddress, long depositNumber) {
-        MiningDetailInfo mingDetailInfo = new MiningDetailInfo(miningAddress, depositorAddress, depositNumber);
         int currentRewardCycle = this.calcRewardCycle(currentHeight);
-        mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 2);
         MiningInfo mingInfo = mingUsers.get(miningAddress);
         //该Token地址为第一次挖矿
         if (mingInfo == null) {
             mingInfo = new MiningInfo();
-            mingInfo.getMiningDetailInfos().put(depositNumber, mingDetailInfo);
+            MiningDetailInfo mingDetailInfo = new MiningDetailInfo(miningAddress, depositorAddress, depositNumber);
+            mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
+            mingInfo.setMiningDetailInfo(mingDetailInfo);
             mingUsers.put(miningAddress, mingInfo);
-        } else {
-            mingInfo.getMiningDetailInfos().put(depositNumber, mingDetailInfo);
+        }else{
+            MiningDetailInfo mingDetailInfo =mingInfo.getMiningDetailInfo();
+            mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
         }
     }
 
@@ -1137,26 +906,24 @@ public class Pocm extends Ownable implements Contract {
      */
     private void putDepositToMap(BigInteger depositValue, long currentHeight) {
         int currentCycle = this.calcRewardCycle(currentHeight);
-        //检查下一个奖励周期的总抵押数是否在队列中
-        if (!totalDepositIndex.containsKey(currentCycle + 1)) {
-            moveLastDepositToCurrentCycle(currentHeight + this.awardingCycle);
+        //检查当前奖励周期的总抵押数是否在队列中
+        if (!totalDepositIndex.containsKey(currentCycle)) {
+            moveLastDepositToCurrentCycle(currentHeight,currentCycle);
         }
-        int putCycle = currentCycle + 2;
-
-        boolean isContainsKey = totalDepositIndex.containsKey(putCycle);
-        RewardCycleInfo cycleInfo = new RewardCycleInfo();
+        int nextCycle = currentCycle + 1;
+        boolean isContainsKey = totalDepositIndex.containsKey(nextCycle);
         if (!isContainsKey) {
+            RewardCycleInfo cycleInfo = new RewardCycleInfo();
             //计算奖励减半
-            long rewardingHeight = putCycle * this.awardingCycle + this.createHeight;
+            long rewardingHeight = nextCycle * this.awardingCycle + this.createHeight;
             if (this.rewardHalvingCycle > 0 && this.nextRewardHalvingHeight <= rewardingHeight) {
                 this.currentPrice=this.currentPrice.divide(this.HLAVING);
-                //this.currentPrice = this.currentPrice.divide(this.HLAVING, decimals(), BigDecimal.ROUND_DOWN);
                 this.nextRewardHalvingHeight += this.rewardHalvingCycle;
             }
 
             if (this.lastCalcCycle == 0) {
                 cycleInfo.setAvailableDepositAmount(depositValue);
-                cycleInfo.setRewardingCylce(putCycle);
+                cycleInfo.setRewardingCylce(nextCycle);
                 cycleInfo.setDifferCycleValue(1);
                 cycleInfo.setCurrentPrice(this.currentPrice);
 
@@ -1171,9 +938,9 @@ public class Pocm extends Ownable implements Contract {
                 totalDepositList.add(cycleInfo);
             } else {
                 RewardCycleInfo lastCycleInfo = totalDepositList.get(totalDepositIndex.get(this.lastCalcCycle));
-                int differCycleValue=putCycle - lastCycleInfo.getRewardingCylce();
+                int differCycleValue=nextCycle - lastCycleInfo.getRewardingCylce();
                 cycleInfo.setAvailableDepositAmount(depositValue.add(lastCycleInfo.getAvailableDepositAmount()));
-                cycleInfo.setRewardingCylce(putCycle);
+                cycleInfo.setRewardingCylce(nextCycle);
                 cycleInfo.setDifferCycleValue(differCycleValue);
                 cycleInfo.setCurrentPrice(this.currentPrice);
 
@@ -1187,12 +954,25 @@ public class Pocm extends Ownable implements Contract {
 
                 totalDepositList.add(cycleInfo);
             }
-            totalDepositIndex.put(putCycle, totalDepositList.size() - 1);
-            this.lastCalcCycle = putCycle;
+            totalDepositIndex.put(nextCycle, totalDepositList.size() - 1);
+            this.lastCalcCycle = nextCycle;
         } else {
-            int alreadyTotalDepositIndex = totalDepositIndex.get(putCycle);
-            RewardCycleInfo cycleInfoTmp = totalDepositList.get(alreadyTotalDepositIndex);
-            cycleInfoTmp.setAvailableDepositAmount(depositValue.add(cycleInfoTmp.getAvailableDepositAmount()));
+            int alreadyTotalDepositIndex = totalDepositIndex.get(nextCycle);
+            RewardCycleInfo cycleInfo = totalDepositList.get(alreadyTotalDepositIndex);
+            cycleInfo.setAvailableDepositAmount(depositValue.add(cycleInfo.getAvailableDepositAmount()));
+
+            BigDecimal sumPrice=BigDecimal.ZERO;
+            BigDecimal privSumPrice=BigDecimal.ZERO;
+            if(cycleInfo.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                BigDecimal amount = toNuls(cycleInfo.getAvailableDepositAmount());
+                //为了提高计算的精确度，保留小数点后8位
+                sumPrice= new BigDecimal(cycleInfo.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfo.getDifferCycleValue()));
+            }
+            if(totalDepositList.size()>1){
+                RewardCycleInfo lastcycleInfo2=totalDepositList.get(totalDepositList.size()-2);
+                privSumPrice=lastcycleInfo2.getRewardBase();
+            }
+            cycleInfo.setRewardBase(privSumPrice.add(sumPrice));
         }
     }
 
@@ -1201,8 +981,7 @@ public class Pocm extends Ownable implements Contract {
      *
      * @param currentHeight
      */
-    private void moveLastDepositToCurrentCycle(long currentHeight) {
-        int currentCycle = this.calcRewardCycle(currentHeight);
+    private void moveLastDepositToCurrentCycle(long currentHeight,int currentCycle) {
         //若当前高度的奖励周期在队列中，则直接退出此方法
         if (totalDepositIndex.containsKey(currentCycle)) {
             return;
@@ -1254,7 +1033,6 @@ public class Pocm extends Ownable implements Contract {
         while (height <= currentHeight) {
             RewardCycleInfo cycleInfo = new RewardCycleInfo();
             this.currentPrice=this.currentPrice.divide(this.HLAVING);
-            //this.currentPrice = this.currentPrice.divide(this.HLAVING, decimals(), BigDecimal.ROUND_DOWN);
             rewardingCycle = this.calcRewardCycle(height);
             boolean isContainsKey = totalDepositIndex.containsKey(rewardingCycle);
             if (isContainsKey) {
@@ -1301,52 +1079,59 @@ public class Pocm extends Ownable implements Contract {
         int depositCycle = this.calcRewardCycle(depositHeight);
         if (currentCycle == depositCycle) {
             //加入抵押和退出抵押在同一个奖励周期，更新下一个奖励周期的总抵押数
-            RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositIndex.get(currentCycle + 2));
+            RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositIndex.get(currentCycle + 1));
             cycleInfoTmp.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount().subtract(depositValue));
 
             BigDecimal sumPrice=BigDecimal.ZERO;
+            BigDecimal privSumPrice=BigDecimal.ZERO;
             if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
                 BigDecimal amount = toNuls(cycleInfoTmp.getAvailableDepositAmount());
                 //为了提高计算的精确度，保留小数点后8位
                 sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
             }
-            cycleInfoTmp.setRewardBase(sumPrice);
+            if(totalDepositList.size()>1){
+                RewardCycleInfo lastcycleInfo2=totalDepositList.get(totalDepositList.size()-2);
+                privSumPrice=lastcycleInfo2.getRewardBase();
+            }
+            cycleInfoTmp.setRewardBase(privSumPrice.add(sumPrice));
         } else {
             //加入抵押和退出抵押不在同一个奖励周期,则更新当前奖励周期的总抵押数
-            int operCycle = currentCycle + 1;
-            boolean isContainsKey = totalDepositIndex.containsKey(operCycle);
+            boolean isContainsKey = totalDepositIndex.containsKey(currentCycle);
             //待操作的奖励周期已经计算了总抵押数
             if (isContainsKey) {
-                RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositIndex.get(operCycle));
+                RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositIndex.get(currentCycle));
                 cycleInfoTmp.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount().subtract(depositValue));
 
                 BigDecimal sumPrice=BigDecimal.ZERO;
+                BigDecimal privSumPrice=BigDecimal.ZERO;
                 if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
                     BigDecimal amount = toNuls(cycleInfoTmp.getAvailableDepositAmount());
                     //为了提高计算的精确度，保留小数点后8位
                     sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
                 }
-                cycleInfoTmp.setRewardBase(sumPrice);
-
+                if(totalDepositList.size()>1){
+                    RewardCycleInfo lastcycleInfo2=totalDepositList.get(totalDepositList.size()-2);
+                    privSumPrice=lastcycleInfo2.getRewardBase();
+                }
+                cycleInfoTmp.setRewardBase(privSumPrice.add(sumPrice));
             } else {
                 //当前高度已经达到奖励减半高度,将所有的减半周期高度对于的奖励高度加入队列
                 long nextHeight = currentHeight + this.awardingCycle;
                 if (this.rewardHalvingCycle > 0 && this.nextRewardHalvingHeight <= nextHeight) {
                     this.moveLastDepositToHalvingCycle(nextRewardHalvingHeight, nextHeight);
                 }
-
                 RewardCycleInfo cycleInfo = new RewardCycleInfo();
 
                 //取队列中最后一个奖励周期的信息
                 RewardCycleInfo cycleInfoTmp = totalDepositList.get(totalDepositList.size() - 1);
-                int differCycleValue=operCycle - cycleInfoTmp.getRewardingCylce();
+                int differCycleValue=currentCycle - cycleInfoTmp.getRewardingCylce();
                 cycleInfo.setAvailableDepositAmount(cycleInfoTmp.getAvailableDepositAmount().subtract(depositValue));
                 cycleInfo.setDifferCycleValue(differCycleValue);
                 cycleInfo.setCurrentPrice(currentPrice);
-                cycleInfo.setRewardingCylce(operCycle);
+                cycleInfo.setRewardingCylce(currentCycle);
 
                 BigDecimal sumPrice=BigDecimal.ZERO;
-                if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
+                if(cycleInfo.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
                     BigDecimal amount = toNuls(cycleInfo.getAvailableDepositAmount());
                     //为了提高计算的精确度，保留小数点后8位
                     sumPrice= new BigDecimal(cycleInfo.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(differCycleValue));
@@ -1354,9 +1139,8 @@ public class Pocm extends Ownable implements Contract {
                 cycleInfo.setRewardBase(cycleInfoTmp.getRewardBase().add(sumPrice));
 
                 totalDepositList.add(cycleInfo);
-
-                totalDepositIndex.put(operCycle, totalDepositList.size() - 1);
-                this.lastCalcCycle = operCycle;
+                totalDepositIndex.put(currentCycle, totalDepositList.size() - 1);
+                this.lastCalcCycle = currentCycle;
             }
         }
     }
@@ -1368,8 +1152,6 @@ public class Pocm extends Ownable implements Contract {
      * @return
      */
     private BigDecimal calcPriceBetweenCycle(int startCycle) {
-       //BigDecimal sumPrice = BigDecimal.ZERO;
-        //BigDecimal sumPriceForRegin = BigDecimal.ZERO;
         int startIndex = totalDepositIndex.get(startCycle - 1);
         BigDecimal sumPriceEnd=totalDepositList.get(totalDepositList.size()-1).getRewardBase();
         BigDecimal sumPriceStart=totalDepositList.get(startIndex).getRewardBase();
