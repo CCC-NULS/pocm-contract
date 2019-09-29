@@ -889,11 +889,6 @@ public class Pocm extends Ownable implements Contract {
             DepositDetailInfo detailInfo = detailInfos.get(depositNumber);
             MiningInfo miningInfo = getMiningInfo(detailInfo.getMiningAddress());
             MiningDetailInfo mingDetailInfo = miningInfo.getMiningDetailInfoByNumber(detailInfo.getDepositNumber());
-/*            if(mingDetailInfo.isRewardsEnd()){
-                //表示该抵押已经领取过最后一笔奖励,不能再领取
-                return mingInfosList;
-            }*/
-
             int nextStartMiningCycle = mingDetailInfo.getNextStartMiningCycle();
             BigInteger miningTmp =BigInteger.ZERO;
             //达到领取奖励的高度
@@ -903,17 +898,16 @@ public class Pocm extends Ownable implements Contract {
                     BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
                     BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
                     miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
-
-                    //Token数量不够分配
-                    if(miningTmp.add(this.allocationAmount).compareTo(this.totalAllocation)>=0){
-                        this.isAcceptDeposit=false;
-                        miningTmp=this.totalAllocation.subtract(this.allocationAmount);
-                    }
                 }
 
                 if(isTranfer){
                     //将后台领取但未发放的加上
                     BigInteger miningValue=miningTmp.add(mingDetailInfo.getUnTranferReceivedMining());
+                    //Token数量不够分配
+                    if(miningValue.add(this.allocationAmount).compareTo(this.totalAllocation)>=0){
+                        this.isAcceptDeposit=false;
+                        miningValue=this.totalAllocation.subtract(this.allocationAmount);
+                    }
                     int currentMiningCount=currentRewardCycle - nextStartMiningCycle + 1;
                     CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,
                             detailInfo.getDepositNumber(),miningValue,currentMiningCount,currentRewardCycle + 1);
@@ -922,7 +916,7 @@ public class Pocm extends Ownable implements Contract {
                     //后台领取但是不发放，暂时记录下来
                     mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
                     mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
-
+                    mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
                     //封装当次的挖矿信息
                     CurrentMingInfo currentMingInfo= new CurrentMingInfo();
                     currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
@@ -973,17 +967,19 @@ public class Pocm extends Ownable implements Contract {
                     BigDecimal sumPrice = this.calcPriceBetweenCycle(nextStartMiningCycle);
                     BigDecimal availableDepositAmountNULS = toNuls(detailInfo.getAvailableAmount());
                     miningTmp = availableDepositAmountNULS.multiply(sumPrice).toBigInteger();
-                    //Token数量不够分配
-                    if(miningSum.add(miningTmp).compareTo(this.totalAllocation)>=0){
-                        this.isAcceptDeposit=false;
-                        miningTmp=this.totalAllocation.subtract(miningSum);
-                    }
-                    miningSum=miningSum.add(miningTmp);
+
                 }
 
                 if(isTranfer){
                     //将后台领取但未发放的加上
                     BigInteger miningValue=miningTmp.add(mingDetailInfo.getUnTranferReceivedMining());
+                    //Token数量不够分配
+                    if(miningSum.add(miningValue).compareTo(this.totalAllocation)>=0){
+                        this.isAcceptDeposit=false;
+                        miningValue=this.totalAllocation.subtract(miningSum);
+                    }
+                    miningSum=miningSum.add(miningValue);
+
                     int currentMiningCount=currentRewardCycle - nextStartMiningCycle + 1;
                     CurrentMingInfo currentMingInfo=this.updateMingDetailInfo(mingDetailInfo,miningInfo,mingResult,detailInfo.getDepositNumber(),miningValue,
                             currentMiningCount,currentRewardCycle + 1);
@@ -992,7 +988,7 @@ public class Pocm extends Ownable implements Contract {
                     //后台领取但是不发放，暂时记录下来
                     mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
                     mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
-
+                    mingDetailInfo.setNextStartMiningCycle(currentRewardCycle + 1);
                     //封装当次的挖矿信息
                     CurrentMingInfo currentMingInfo= new CurrentMingInfo();
                     currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
