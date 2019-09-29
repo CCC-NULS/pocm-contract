@@ -922,6 +922,14 @@ public class Pocm extends Ownable implements Contract {
                     //后台领取但是不发放，暂时记录下来
                     mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
                     mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
+
+                    //封装当次的挖矿信息
+                    CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+                    currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+                    currentMingInfo.setMiningAmount(miningTmp);
+                    currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
+                    currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+                    mingInfosList.add(currentMingInfo);
                 }
             }else if(isTranfer){
                 BigInteger miningValue=mingDetailInfo.getUnTranferReceivedMining();
@@ -984,6 +992,14 @@ public class Pocm extends Ownable implements Contract {
                     //后台领取但是不发放，暂时记录下来
                     mingDetailInfo.setUnTranferReceivedMining(mingDetailInfo.getUnTranferReceivedMining().add(miningTmp));
                     mingDetailInfo.setUnTranferMiningCount(mingDetailInfo.getUnTranferMiningCount() + currentRewardCycle - nextStartMiningCycle + 1);
+
+                    //封装当次的挖矿信息
+                    CurrentMingInfo currentMingInfo= new CurrentMingInfo();
+                    currentMingInfo.setDepositNumber(detailInfo.getDepositNumber());
+                    currentMingInfo.setMiningAmount(miningTmp);
+                    currentMingInfo.setMiningCount(currentRewardCycle - nextStartMiningCycle + 1);
+                    currentMingInfo.setReceiverMiningAddress(mingDetailInfo.getReceiverMiningAddress());
+                    mingInfosList.add(currentMingInfo);
                 }
             }
         }
@@ -993,8 +1009,6 @@ public class Pocm extends Ownable implements Contract {
     private CurrentMingInfo updateMingDetailInfo(MiningDetailInfo mingDetailInfo,MiningInfo miningInfo,Map<String, BigInteger> mingResult,
                                                  long depositNumber,BigInteger miningValue,int currentMiningCount,int nextStartMiningCycle){
         CurrentMingInfo currentMingInfo= new CurrentMingInfo();
-
-        //未发放的奖励金额
         mingDetailInfo.setMiningAmount(mingDetailInfo.getMiningAmount().add(miningValue));
         mingDetailInfo.setMiningCount(mingDetailInfo.getMiningCount() +currentMiningCount+mingDetailInfo.getUnTranferMiningCount());
         mingDetailInfo.setNextStartMiningCycle(nextStartMiningCycle);
