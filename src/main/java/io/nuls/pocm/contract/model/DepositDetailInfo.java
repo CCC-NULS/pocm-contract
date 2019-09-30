@@ -1,7 +1,5 @@
 package io.nuls.pocm.contract.model;
 
-import io.nuls.pocm.contract.util.PocmUtil;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 

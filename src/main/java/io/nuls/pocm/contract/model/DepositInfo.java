@@ -1,13 +1,7 @@
 package io.nuls.pocm.contract.model;
 
-import io.nuls.pocm.contract.util.PocmUtil;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Map;
-
-import static io.nuls.contract.sdk.Utils.require;
 
 /**
  * 抵押信息

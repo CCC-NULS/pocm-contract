@@ -2,7 +2,6 @@ package io.nuls.pocm.contract.event;
 
 import io.nuls.contract.sdk.Event;
 import io.nuls.pocm.contract.model.DepositDetailInfo;
-import io.nuls.pocm.contract.model.DepositInfo;
 
 import java.math.BigInteger;
 
@@ -19,4 +18,11 @@ public class DepositDetailInfoEvent extends DepositDetailInfo implements Event {
         this.depositValue=value;
     }
 
+    public BigInteger getDepositValue() {
+        return depositValue;
+    }
+
+    public void setDepositValue(BigInteger depositValue) {
+        this.depositValue = depositValue;
+    }
 }

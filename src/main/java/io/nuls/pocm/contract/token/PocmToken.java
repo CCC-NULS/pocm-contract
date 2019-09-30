@@ -1,10 +1,10 @@
 package io.nuls.pocm.contract.token;
 
-import io.nuls.pocm.contract.ownership.Ownable;
 import io.nuls.contract.sdk.Address;
 import io.nuls.contract.sdk.Msg;
 import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
+import io.nuls.pocm.contract.ownership.Ownable;
 
 import java.math.BigInteger;
 import java.util.HashMap;

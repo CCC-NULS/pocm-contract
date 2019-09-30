@@ -24,10 +24,6 @@
 package io.nuls.pocm.contract.model;
 
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Map;
-
-import static io.nuls.contract.sdk.Utils.require;
 
 /**
  * 挖矿信息

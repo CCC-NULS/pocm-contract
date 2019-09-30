@@ -1,7 +1,5 @@
 package io.nuls.pocm.contract.model;
 
-import java.math.BigInteger;
-
 /**
  * 共识节点创建者参与抵押的信息
  */
