@@ -404,7 +404,7 @@ public class Pocm extends Ownable implements Contract {
         //初始化挖矿信息
         initMingInfo(currentHeight, userStr, userStr, depositNumber);
         totalDepositManager.add(availableDepositValue);
-        emit(new DepositDetailInfoEvent(info.getDepositDetailInfo()));
+        emit(new DepositDetailInfoEvent(info.getDepositDetailInfo(),value));
     }
 
     /**
@@ -508,10 +508,7 @@ public class Pocm extends Ownable implements Contract {
             while (iter.hasNext()){
                 DepositInfo depositInfo=iter.next();
                 if(depositInfo!=null){
-                    List<CurrentMingInfo> mingInfosListTmp= this.receive(depositInfo,false);
-                    if(mingInfosListTmp!=null){
-                        mingInfosList.addAll(mingInfosListTmp);
-                    }
+                   this.receive(depositInfo,false);
                 }
             }
             //删除totalDepositList队列中所有数据，只保留最后两条记录，因为若有投资者刚加入，需要这两条数据
@@ -523,9 +520,6 @@ public class Pocm extends Ownable implements Contract {
             totalDepositIndex.put(lastCycleInfo1.getRewardingCylce(), 01);
             totalDepositList.add(lastCycleInfo2);
             totalDepositIndex.put(this.lastCalcCycle,1);
-        }
-        if(mingInfosList!=null&&mingInfosList.size()>0){
-            emit(new CurrentMiningInfoEvent(mingInfosList));
         }
     }
 
