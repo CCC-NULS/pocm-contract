@@ -1333,16 +1333,18 @@ public class Pocm extends Ownable implements Contract {
 
 
     /**
-     * 向合约追加Token数量
+     * 在抵押期间，更新合约可分配的Token数量
      */
-    public void appendTotalAllocation(){
+    public void updateTotalAllocation(){
         String[][] args = new String[1][];
         args[0]=new String[]{Msg.address().toString()};
         String balance=tokenContractAddress.callWithReturnValue("balanceOf","",args,BigInteger.ZERO);
         //合约持有的Token加上已经分配的Token=该合约总共可分配的Token
         totalAllocation=this.allocationAmount.add(new BigInteger(balance));
-        if(!this.isAcceptDeposit&&this.totalAllocation.compareTo(this.allocationAmount)>0){
+        if(this.totalAllocation.compareTo(this.allocationAmount)>0){
             this.isAcceptDeposit=true;
+        }else{
+            this.isAcceptDeposit=false;
         }
     }
 
