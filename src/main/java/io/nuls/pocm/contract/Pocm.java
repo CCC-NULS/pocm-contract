@@ -35,6 +35,7 @@ import io.nuls.pocm.contract.manager.ConsensusManager;
 import io.nuls.pocm.contract.manager.TotalDepositManager;
 import io.nuls.pocm.contract.model.*;
 import io.nuls.pocm.contract.ownership.Ownable;
+import io.nuls.pocm.contract.util.PocmUtil;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -261,12 +262,12 @@ public class Pocm extends Ownable implements Contract {
             }
             //更新抵押信息
             DepositDetailInfo detailInfo=info.getDepositDetailInfo();
-            detailInfo.setDepositAmount(detailInfo.getDepositAmount().add(value),FULL_PERCENT);
+            detailInfo.setDepositAmount(value,FULL_PERCENT);
             detailInfo.setDepositHeight(currentHeight);
             detailInfo.setMiningAddress(agentAddress);
             depositNumber=detailInfo.getDepositNumber();
 
-            info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),FULL_PERCENT);
+            info.setDepositTotalAmount(value,FULL_PERCENT);
             info.setDepositCount(info.getDepositCount() + 1);
         }
         ConsensusAgentDepositInfo agentDepositInfo=new ConsensusAgentDepositInfo(agentHash,agentAddress,depositNumber);
@@ -295,9 +296,8 @@ public class Pocm extends Ownable implements Contract {
 
         //1.共识节点的创建者先领取奖励
         ConsensusAgentDepositInfo agentDepositInfo=agentDeposits.get(agentHash);
-        if(agentDepositInfo==null){
-            return;
-        }
+        require(agentDepositInfo != null, "该共识节点的创建者没有添加节点信息");
+
         String userAddress = agentDepositInfo.getDepositorAddress();
         MiningInfo miningInfo = mingUsers.get(userAddress);
         require(miningInfo != null, "没有该共识节点的创建者抵押挖矿的挖矿信息");
@@ -305,24 +305,39 @@ public class Pocm extends Ownable implements Contract {
 
         List<CurrentMingInfo> mingInfosList=this.receive(depositInfo,true);
 
-
         //2.共识节点的创建者退出
         DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfo();
         long currentHeight = Block.number();
         List<Long> depositNumbers =new ArrayList<Long>();
-        //删除挖矿信息
-        mingUsers.remove(detailInfo.getMiningAddress());
-        depositUsers.remove(userAddress);
+
+        //退出的总抵押金额
+        BigInteger totalDepositAmount=detailInfo.getDepositAmount();
+
+        // 参与POCM的抵押金额 ，参与POCM的抵押金额=锁定金额*9，因为availableAmount可能包含共识节点的抵押金额，所以通过锁定金额反向计算参与抵押的金额
+        BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.toBigInteger().multiply(new BigInteger("10")));
+        BigInteger lockedAmount=detailInfo.getLockedAmount();
+        //退出抵押返回的押金=参与POCM的抵押金额+锁定金额
+        BigInteger selfDepositAmount =lockedAmount.add(quitAvailableAmount);
+
+        BigInteger agentDepositAmount=detailInfo.getDepositAmount().subtract(selfDepositAmount);
+        //说明共识节点的创建者没有主动参与抵押
+        if(quitAvailableAmount.compareTo(BigInteger.ZERO)==0){
+            depositUsers.remove(userAddress);
+            //删除挖矿信息
+            mingUsers.remove(detailInfo.getMiningAddress());
+        }
 
         // 退押金
-        depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()),FULL_PERCENT);
+        depositInfo.updateDepositTotalAmount(agentDepositAmount,BigInteger.ZERO,BigInteger.ZERO);
         //从队列中退出抵押金额
-        this.quitDepositToMap(detailInfo.getAvailableAmount(), currentHeight, detailInfo.getDepositHeight());
+        this.quitDepositToMap(agentDepositAmount, currentHeight, detailInfo.getDepositHeight());
+
         depositNumbers.add(detailInfo.getDepositNumber());
         agentDeposits.remove(agentHash);
 
         emit(new CurrentMiningInfoEvent(mingInfosList));
         emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
+
     }
 
     /**
@@ -382,11 +397,11 @@ public class Pocm extends Ownable implements Contract {
             emit(new CurrentMiningInfoEvent(mingInfosList));
             //更新抵押信息
             DepositDetailInfo detailInfo=info.getDepositDetailInfo();
-            detailInfo.setDepositAmount(detailInfo.getDepositAmount().add(value),AVAILABLE_PERCENT);
+            detailInfo.setDepositAmount(value,AVAILABLE_PERCENT);
             detailInfo.setDepositHeight(currentHeight);
             detailInfo.setMiningAddress(userStr);
             depositNumber=detailInfo.getDepositNumber();
-            info.setDepositTotalAmount(info.getDepositTotalAmount().add(value),AVAILABLE_PERCENT);
+            info.setDepositTotalAmount(value,AVAILABLE_PERCENT);
             info.setDepositCount(info.getDepositCount() + 1);
         }
 
@@ -429,29 +444,48 @@ public class Pocm extends Ownable implements Contract {
         long unLockedHeight = checkDepositLocked(detailInfo);
         require(unLockedHeight == -1, "挖矿锁定中, 解锁高度是 " + unLockedHeight);
 
-        //删除挖矿信息
-        mingUsers.remove(detailInfo.getMiningAddress());
 
-        // 退押金
-        BigInteger depositAvailableTotalAmount = detailInfo.getAvailableAmount();
-        BigInteger depositTotalAmount=detailInfo.getDepositAmount();
-        depositInfo.setDepositTotalAmount(depositInfo.getDepositTotalAmount().subtract(detailInfo.getDepositAmount()),AVAILABLE_PERCENT);
-        depositInfo.setDepositCount(depositInfo.getDepositCount() - 1);
+        //退出的总抵押金额
+        BigInteger totalDepositAmount=detailInfo.getDepositAmount();
+
+        // 参与POCM的抵押金额 ，参与POCM的抵押金额=锁定金额*9，因为availableAmount可能包含共识节点的抵押金额，所以通过锁定金额反向计算参与抵押的金额
+        BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.toBigInteger().multiply(new BigInteger("10")));
+
+        //防止共识节点的创建在无抵押的情况下调用此方法：当共识节点的创建者调用此方法时，可能存在抵押记录，但是没有主动参与抵押的金额
+        require(quitAvailableAmount.compareTo(BigInteger.ZERO)>0, "此用户参与抵押的金额为零");
+
+        BigInteger lockedAmount=detailInfo.getLockedAmount();
+        //退出抵押返回的押金=参与POCM的抵押金额+锁定金额
+        BigInteger transferTotalAmount =lockedAmount.add(quitAvailableAmount);
+
+        boolean isEnoughBalance = totalDepositManager.subtract(quitAvailableAmount);
+        require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + quitAvailableAmount);
+
+        //退出抵押时返回的押金等于总抵押金额，说明该地址是是共识节点的创建者,该quit方法只退出该创建者参与抵押的金额
+        if(totalDepositAmount.compareTo(transferTotalAmount)>0){
+            // 更新退押金详情
+            detailInfo.updateDepositTotalAmount(transferTotalAmount,quitAvailableAmount,lockedAmount);
+        }else{
+            depositInfo.setDepositCount(depositInfo.getDepositCount() - 1);
+            this.totalDepositAddressCount -= 1;
+            depositUsers.remove(userString);
+            //删除挖矿信息
+            mingUsers.remove(detailInfo.getMiningAddress());
+        }
+
+        // 更新退押金
+        depositInfo.updateDepositTotalAmount(transferTotalAmount,quitAvailableAmount,lockedAmount);
+
         //从队列中退出抵押金额
-        this.quitDepositToMap(depositAvailableTotalAmount, currentHeight, detailInfo.getDepositHeight());
+        this.quitDepositToMap(quitAvailableAmount, currentHeight, detailInfo.getDepositHeight());
         depositNumbers.add(detailInfo.getDepositNumber());
-
-        boolean isEnoughBalance = totalDepositManager.subtract(depositAvailableTotalAmount);
-        require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + depositAvailableTotalAmount);
-
-        this.totalDepositAddressCount -= 1;
-        depositUsers.remove(userString);
 
         if(mingInfosList!=null&&mingInfosList.size()>0){
             emit(new CurrentMiningInfoEvent(mingInfosList));
         }
         emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
-        user.transfer(depositTotalAmount);
+        user.transfer(transferTotalAmount);
+
     }
 
     /**
