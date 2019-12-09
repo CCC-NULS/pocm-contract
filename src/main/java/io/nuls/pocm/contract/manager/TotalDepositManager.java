@@ -52,7 +52,7 @@ public class TotalDepositManager {
     }
 
     public String getTotalDepositDetail() {
-        return "running: " + toNuls(totalDeposit).toPlainString() + " NULS";
+        return "running: " + toNuls(totalDeposit).toPlainString() + " BBAI";
     }
 
     public void add(BigInteger value) {

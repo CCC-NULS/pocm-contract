@@ -39,10 +39,10 @@ import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
  * @date: 2019-05-14
  */
 public class ConsensusManager {
-    // 2K
-    public static final BigInteger MIN_JOIN_DEPOSIT = BigInteger.valueOf(200000000000L);
-    // 50W
-    public static final BigInteger MAX_TOTAL_DEPOSIT = BigInteger.valueOf(50000000000000L);
+    // 2W
+    public static final BigInteger MIN_JOIN_DEPOSIT = BigInteger.valueOf(2000000000000L);
+    // 500W
+    public static final BigInteger MAX_TOTAL_DEPOSIT = BigInteger.valueOf(500000000000000L);
 
     public static final String ACTIVE_AGENT = "1";
     // 可用金额

@@ -148,7 +148,7 @@ public class Pocm extends Ownable implements Contract {
         require(tokenContractAddress.isContract(),"tokenAddress应该是合约地址");
         require(cycleRewardTokenAmount.compareTo(BigDecimal.ZERO) > 0, "每个奖励周期的Token数量应该大于0");
 
-        require(minimumDepositNULS.compareTo(BigInteger.ZERO) > 0, "最小抵押NULS数量应该大于0");
+        require(minimumDepositNULS.compareTo(BigInteger.ZERO) > 0, "最小抵押BBAI数量应该大于0");
         require(lockedTokenDay>=0,"Token的锁定天数应该大于等于0");
 
         this.decimals= Integer.parseInt(tokenContractAddress.callWithReturnValue("decimals","",null,BigInteger.ZERO));
@@ -355,7 +355,7 @@ public class Pocm extends Ownable implements Contract {
         DepositInfo info = depositUsers.get(userStr);
         BigInteger value = Msg.value();
         long currentHeight = Block.number();
-        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS");
+        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"BBAI");
         long depositNumber=0;
         if (info == null) {
             depositNumber = NUMBER++;
@@ -635,7 +635,7 @@ public class Pocm extends Ownable implements Contract {
     public void clearContract() {
         onlyOwner();
         BigInteger balance = Msg.address().balance();
-        require(balance.compareTo(ONE_NULS) <= 0, "余额不得大于1NULS");
+        require(balance.compareTo(ONE_NULS) <= 0, "余额不得大于1BBAI");
         require(balance.compareTo(BigInteger.ZERO) >0, "余额为零，无需清空");
         contractCreator.transfer(balance);
     }
@@ -1194,9 +1194,9 @@ public class Pocm extends Ownable implements Contract {
             if (intAmount.compareTo(BigInteger.ZERO) == 0) {
                 return "Unknown";
             }
-            return toMaxUit(cycleInfoTmp.getCurrentPrice().multiply(BigInteger.TEN.pow(8)).divide(intAmount),this.decimals).toPlainString()+ " " + name() + "/NULS .";
+            return toMaxUit(cycleInfoTmp.getCurrentPrice().multiply(BigInteger.TEN.pow(8)).divide(intAmount),this.decimals).toPlainString()+ " " + name() + "/BBAI .";
         } else {
-            return initialPrice.toPlainString() + " " + name() + "/ x NULS .";
+            return initialPrice.toPlainString() + " " + name() + "/ x BBAI .";
         }
     }
 
@@ -1205,7 +1205,7 @@ public class Pocm extends Ownable implements Contract {
      */
     @View
     public String initialCycleRewardTokenAmount() {
-        return initialPrice.toPlainString() + " " + name() + "/ x NULS";
+        return initialPrice.toPlainString() + " " + name() + "/ x BBAI";
     }
 
     @View
