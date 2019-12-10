@@ -14,13 +14,13 @@ public class DepositInfo {
     private String  depositorAddress;
 
     // 抵押总金额
-    private BigInteger depositTotalAmount;
+    private BigInteger depositTotalAmount=BigInteger.ZERO;
 
     //抵押可用总金额 =抵押总金额*0.9
-    private BigInteger depositAvailableTotalAmount;
+    private BigInteger depositAvailableTotalAmount=BigInteger.ZERO;
 
     //抵押锁定总金额 =抵押总金额*0.1
-    private BigInteger depositLockedTotalAmount;
+    private BigInteger depositLockedTotalAmount=BigInteger.ZERO;
 
     //抵押笔数
     private int depositCount;
@@ -61,7 +61,7 @@ public class DepositInfo {
     public void updateDepositTotalAmount(BigInteger redDepositTotalAmount, BigInteger redAvailableTotalAmount, BigInteger redLockedTotalAmount) {
         this.depositTotalAmount = this.depositTotalAmount.subtract(redDepositTotalAmount);
         this.depositAvailableTotalAmount =this.depositAvailableTotalAmount.subtract(redAvailableTotalAmount);
-        this.depositLockedTotalAmount=this.depositLockedTotalAmount.add(redLockedTotalAmount);
+        this.depositLockedTotalAmount=this.depositLockedTotalAmount.subtract(redLockedTotalAmount);
     }
 
 

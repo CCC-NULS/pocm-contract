@@ -314,21 +314,24 @@ public class Pocm extends Ownable implements Contract {
         BigInteger totalDepositAmount=detailInfo.getDepositAmount();
 
         // 参与POCM的抵押金额 ，参与POCM的抵押金额=锁定金额*9，因为availableAmount可能包含共识节点的抵押金额，所以通过锁定金额反向计算参与抵押的金额
-        BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.toBigInteger().multiply(new BigInteger("10")));
+        BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.multiply(new BigDecimal("10")).toBigInteger());
         BigInteger lockedAmount=detailInfo.getLockedAmount();
         //退出抵押返回的押金=参与POCM的抵押金额+锁定金额
         BigInteger selfDepositAmount =lockedAmount.add(quitAvailableAmount);
 
         BigInteger agentDepositAmount=detailInfo.getDepositAmount().subtract(selfDepositAmount);
         //说明共识节点的创建者没有主动参与抵押
-        if(quitAvailableAmount.compareTo(BigInteger.ZERO)==0){
+        if(selfDepositAmount.compareTo(BigInteger.ZERO)==0){
             depositUsers.remove(userAddress);
             //删除挖矿信息
             mingUsers.remove(detailInfo.getMiningAddress());
+        }else{
+            // 更新退押金详情
+            detailInfo.updateDepositTotalAmount(agentDepositAmount,agentDepositAmount,BigInteger.ZERO);
         }
 
         // 退押金
-        depositInfo.updateDepositTotalAmount(agentDepositAmount,BigInteger.ZERO,BigInteger.ZERO);
+        depositInfo.updateDepositTotalAmount(agentDepositAmount,agentDepositAmount,BigInteger.ZERO);
         //从队列中退出抵押金额
         this.quitDepositToMap(agentDepositAmount, currentHeight, detailInfo.getDepositHeight());
 
@@ -449,7 +452,7 @@ public class Pocm extends Ownable implements Contract {
         BigInteger totalDepositAmount=detailInfo.getDepositAmount();
 
         // 参与POCM的抵押金额 ，参与POCM的抵押金额=锁定金额*9，因为availableAmount可能包含共识节点的抵押金额，所以通过锁定金额反向计算参与抵押的金额
-        BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.toBigInteger().multiply(new BigInteger("10")));
+        BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.multiply(new BigDecimal("10")).toBigInteger());
 
         //防止共识节点的创建在无抵押的情况下调用此方法：当共识节点的创建者调用此方法时，可能存在抵押记录，但是没有主动参与抵押的金额
         require(quitAvailableAmount.compareTo(BigInteger.ZERO)>0, "此用户参与抵押的金额为零");

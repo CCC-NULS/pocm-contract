@@ -63,7 +63,7 @@ public class DepositDetailInfo {
     public void updateDepositTotalAmount(BigInteger redDepositTotalAmount, BigInteger redAvailableTotalAmount, BigInteger redLockedTotalAmount) {
         this.depositAmount = this.depositAmount.subtract(redDepositTotalAmount);
         this.availableAmount =this.availableAmount.subtract(redAvailableTotalAmount);
-        this.lockedAmount=this.lockedAmount.add(redLockedTotalAmount);
+        this.lockedAmount=this.lockedAmount.subtract(redLockedTotalAmount);
     }
 
 
