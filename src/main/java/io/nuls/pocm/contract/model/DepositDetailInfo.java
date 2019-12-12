@@ -44,15 +44,28 @@ public class DepositDetailInfo {
 
     /**
      * 设置抵押金额的同时，计算锁定金额和可用金额
-     * @param depositAmount 抵押金额
+     * @param incDepositAmount 抵押金额
      */
-    public void setDepositAmount(BigInteger depositAmount , BigDecimal percent) {
-        this.depositAmount = depositAmount;
-        BigDecimal bigDecimalValue =new BigDecimal(depositAmount);
-        this.availableAmount =percent.multiply(bigDecimalValue).toBigInteger();
-        this.lockedAmount=this.depositAmount.subtract(this.availableAmount);
-
+    public void setDepositAmount(BigInteger incDepositAmount , BigDecimal percent) {
+        this.depositAmount =this.depositAmount.add(incDepositAmount);
+        BigDecimal bigDecimalValue =new BigDecimal(incDepositAmount);
+        BigInteger incAvailableAmount =percent.multiply(bigDecimalValue).toBigInteger();
+        this.availableAmount =this.availableAmount.add(incAvailableAmount);
+        this.lockedAmount=this.lockedAmount.add(incDepositAmount.subtract(incAvailableAmount));
     }
+
+    /**
+     * 更新抵押金额
+     * @param redDepositTotalAmount  退出的总金额
+     * @param redAvailableTotalAmount 退出的可用抵押金额
+     * @param redLockedTotalAmount  退出的锁定抵押金额
+     */
+    public void updateDepositTotalAmount(BigInteger redDepositTotalAmount, BigInteger redAvailableTotalAmount, BigInteger redLockedTotalAmount) {
+        this.depositAmount = this.depositAmount.subtract(redDepositTotalAmount);
+        this.availableAmount =this.availableAmount.subtract(redAvailableTotalAmount);
+        this.lockedAmount=this.lockedAmount.subtract(redLockedTotalAmount);
+    }
+
 
     public long getDepositHeight() {
         return depositHeight;
