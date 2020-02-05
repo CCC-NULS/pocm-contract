@@ -32,7 +32,6 @@ import java.util.*;
 
 import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.manager.ConsensusManager.MAX_TOTAL_DEPOSIT;
-import static io.nuls.pocm.contract.manager.ConsensusManager.MIN_JOIN_DEPOSIT;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
 
 /**
@@ -49,6 +48,8 @@ public class DepositOthersManager {
     private LinkedList<ConsensusDepositInfo> depositList = new LinkedList<ConsensusDepositInfo>();
     // 委托其他节点的锁定金额
     private BigInteger depositLockedAmount = BigInteger.ZERO;
+
+    private BigInteger MIN_JOIN_DEPOSIT;
 
     public DepositOthersManager() {
         otherAgents = new HashMap<String, AgentInfo>();
@@ -265,6 +266,14 @@ public class DepositOthersManager {
                 break;
             }
         }
+    }
+
+    public void modifyMinJoinDeposit(BigInteger value) {
+        MIN_JOIN_DEPOSIT = value;
+    }
+
+    public BigInteger getMinJoinDeposit() {
+        return MIN_JOIN_DEPOSIT;
     }
 
     @Override

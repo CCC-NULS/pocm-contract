@@ -27,6 +27,7 @@ import io.nuls.contract.sdk.Msg;
 
 import java.math.BigInteger;
 
+import static io.nuls.contract.sdk.Utils.require;
 import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
 
 
@@ -80,5 +81,10 @@ public class TotalDepositManager {
 
     public void setOpenConsensus(boolean openConsensus) {
         this.openConsensus = openConsensus;
+    }
+
+    public void closeConsensus() {
+        require(consensusManager.getAgents() == null, "请先移除共识节点hash");
+        this.openConsensus = false;
     }
 }

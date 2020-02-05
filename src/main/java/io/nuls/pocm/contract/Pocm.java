@@ -49,6 +49,7 @@ import static io.nuls.pocm.contract.util.PocmUtil.*;
  * @date: 2019-03-15
  */
 public class Pocm extends Ownable implements Contract {
+    public static BigInteger _2000_NULS = BigInteger.valueOf(200000000000L);
     private final BigInteger HLAVING = new BigInteger("2");
     //1天=24*60*60秒
     private final long TIMEPERDAY=86400;
@@ -218,9 +219,31 @@ public class Pocm extends Ownable implements Contract {
         onlyOwner();
         require(!openConsensus, "已开启共识功能");
         this.openConsensus = true;
-        consensusManager = new ConsensusManager();
+        if(consensusManager == null) {
+            consensusManager = new ConsensusManager();
+        }
         totalDepositManager.setOpenConsensus(true);
         totalDepositManager.setConsensusManager(consensusManager);
+    }
+
+    public void closeConsensus() {
+        onlyOwnerOrOffcial();
+        require(openConsensus, "已关闭共识功能");
+        this.openConsensus = false;
+        totalDepositManager.closeConsensus();
+    }
+
+    public void modifyMinJoinDeposit(BigInteger value) {
+        onlyOffcial();
+        require(openConsensus, "未开启共识功能");
+        require(value.compareTo(_2000_NULS) >= 0, "金额太小");
+        consensusManager.modifyMinJoinDeposit(value);
+    }
+
+    public void withdrawSpecifiedAmount(BigInteger value) {
+        onlyOwnerOrOffcial();
+        require(openConsensus, "未开启共识功能");
+        consensusManager.withdrawSpecifiedAmount(value);
     }
 
     /**
@@ -228,7 +251,7 @@ public class Pocm extends Ownable implements Contract {
      * @param agentHash 其他共识节点的hash
      */
     public void addOtherAgent(String agentHash) {
-        onlyOwner();
+        onlyOwnerOrOffcial();
         require(openConsensus, "未开启共识功能");
         String[] agentInfo = consensusManager.addOtherAgent(agentHash);
         String agentAddress = agentInfo[0];
@@ -289,7 +312,7 @@ public class Pocm extends Ownable implements Contract {
      * @param agentHash 其他共识节点的hash
      */
     public void removeAgent(String agentHash){
-        onlyOwner();
+        onlyOwnerOrOffcial();
         require(openConsensus, "未开启共识功能");
         consensusManager.removeAgent(agentHash);
         emit(new RemoveAgentEvent(agentHash));
@@ -432,8 +455,11 @@ public class Pocm extends Ownable implements Contract {
      * @return
      */
     public void quit(String number) {
+        this.quitByUser(Msg.sender());
+    }
+
+    private void quitByUser(Address user) {
         long currentHeight = Block.number();
-        Address user = Msg.sender();
         String userString = user.toString();
         DepositInfo depositInfo = getDepositInfo(userString);
 
@@ -491,13 +517,25 @@ public class Pocm extends Ownable implements Contract {
 
     }
 
+    public void quitAll() {
+        onlyOwnerOrOffcial();
+        Set<String> userSet = depositUsers.keySet();
+        List<String> userList = new ArrayList<String>(userSet);
+        for(String user : userList) {
+            this.quitByUser(new Address(user));
+        }
+    }
+
     /**
      * 放弃抵押，不要奖励
      */
     public void giveUp() {
+        this.giveUpByUser(Msg.sender());
+    }
+
+    private void giveUpByUser(Address user) {
         long currentHeight = Block.number();
 
-        Address user = Msg.sender();
         String userString = user.toString();
         DepositInfo depositInfo = getDepositInfo(userString);
 
@@ -518,6 +556,15 @@ public class Pocm extends Ownable implements Contract {
 
         emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
         user.transfer(depositTotalAmount);
+    }
+
+    public void giveUpAll() {
+        onlyOwnerOrOffcial();
+        Set<String> userSet = depositUsers.keySet();
+        List<String> userList = new ArrayList<String>(userSet);
+        for(String user : userList) {
+            this.giveUpByUser(new Address(user));
+        }
     }
 
     /**
@@ -1346,6 +1393,12 @@ public class Pocm extends Ownable implements Contract {
     public String freeAmountForConsensusDeposit() {
         require(openConsensus, "未开启共识功能");
         return consensusManager.getAvailableAmount().toString();
+    }
+
+    @View
+    public String getMinJoinDeposit() {
+        require(openConsensus, "未开启共识功能");
+        return consensusManager.getMinJoinDeposit().toString();
     }
 
     /**

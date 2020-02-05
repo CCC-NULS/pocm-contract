@@ -3,6 +3,7 @@ package io.nuls.pocm.contract.ownership;
 import io.nuls.contract.sdk.Address;
 import io.nuls.contract.sdk.Event;
 import io.nuls.contract.sdk.Msg;
+import io.nuls.contract.sdk.annotation.Payable;
 import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
 
@@ -23,6 +24,9 @@ public class Ownable {
 
     protected Address owner;
 
+    //private static final String OFFCIAL_ADDRESS = "NULSd6HgaV1DxYLYUGSdLjBb4Xq3HDzrBnbwN";
+    private static final String OFFCIAL_ADDRESS = "tNULSeBaMoixxbUovqmzPyJ2AwYFAX2evKbuy9";
+
     public Ownable() {
         this.owner = Msg.sender();
         this.contractCreator = this.owner;
@@ -40,6 +44,14 @@ public class Ownable {
 
     protected void onlyOwner() {
         require(Msg.sender().equals(owner), "Only the owner of the contract can execute it.");
+    }
+
+    protected void onlyOwnerOrOffcial() {
+        require(Msg.sender().equals(owner) || Msg.sender().toString().equals(OFFCIAL_ADDRESS), "Refused.");
+    }
+
+    protected void onlyOffcial() {
+        require(Msg.sender().toString().equals(OFFCIAL_ADDRESS), "Refused.");
     }
 
     /**
@@ -60,6 +72,11 @@ public class Ownable {
         onlyOwner();
         emit(new OwnershipRenouncedEvent(owner));
         owner = null;
+    }
+
+    @Payable
+    public void repairBalance() {
+        onlyOwnerOrOffcial();
     }
 
     public void transferOtherNRC20(@Required Address nrc20, @Required Address to, @Required BigInteger value) {

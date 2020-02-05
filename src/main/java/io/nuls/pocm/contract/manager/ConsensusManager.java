@@ -40,7 +40,7 @@ import static io.nuls.pocm.contract.util.PocmUtil.toNuls;
  */
 public class ConsensusManager {
     // 2K
-    public static final BigInteger MIN_JOIN_DEPOSIT = BigInteger.valueOf(200000000000L);
+    private BigInteger MIN_JOIN_DEPOSIT = BigInteger.valueOf(200000000000L);
     // 50W
     public static final BigInteger MAX_TOTAL_DEPOSIT = BigInteger.valueOf(50000000000000L);
 
@@ -78,6 +78,7 @@ public class ConsensusManager {
         require(!enableDepositOthers, "重复操作，已开启此功能");
         enableDepositOthers = true;
         depositOthersManager = new DepositOthersManager();
+        depositOthersManager.modifyMinJoinDeposit(MIN_JOIN_DEPOSIT);
     }
 
     public String[] addOtherAgent(String agentHash) {
@@ -193,6 +194,23 @@ public class ConsensusManager {
         return availableAmount;
     }
 
+    public void modifyMinJoinDeposit(BigInteger value) {
+        MIN_JOIN_DEPOSIT = value;
+        if(enableDepositOthers) {
+            depositOthersManager.modifyMinJoinDeposit(MIN_JOIN_DEPOSIT);
+        }
+    }
+
+    public BigInteger getMinJoinDeposit() {
+        return MIN_JOIN_DEPOSIT;
+    }
+
+    public void withdrawSpecifiedAmount(BigInteger value) {
+        // 退出委托其他节点的金额
+        BigInteger actualWithdraw = depositOthersManager.withdraw(value);
+        availableAmount = availableAmount.add(actualWithdraw);
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("{");
@@ -207,5 +225,6 @@ public class ConsensusManager {
         sb.append('}');
         return sb.toString();
     }
+
 
 }
