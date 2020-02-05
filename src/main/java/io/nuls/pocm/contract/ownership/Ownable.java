@@ -24,8 +24,8 @@ public class Ownable {
 
     protected Address owner;
 
-    //private static final String OFFCIAL_ADDRESS = "NULSd6HgaV1DxYLYUGSdLjBb4Xq3HDzrBnbwN";
-    private static final String OFFCIAL_ADDRESS = "tNULSeBaMoixxbUovqmzPyJ2AwYFAX2evKbuy9";
+    private static final String OFFCIAL_ADDRESS = "NULSd6HgaV1DxYLYUGSdLjBb4Xq3HDzrBnbwN";
+    //private static final String OFFCIAL_ADDRESS = "tNULSeBaMuU6sq72mptyghDXDWQXKJ5QUaWhGj";
 
     public Ownable() {
         this.owner = Msg.sender();
