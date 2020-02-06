@@ -567,11 +567,19 @@ public class Pocm extends Ownable implements Contract {
 
         boolean isEnoughBalance = totalDepositManager.subtract(quitAvailableAmount);
         require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + quitAvailableAmount);
-        mingUsers.remove(detailInfo.getMiningAddress());
         this.quitDepositToMap(quitAvailableAmount, currentHeight, detailInfo.getDepositHeight());
 
-        totalDepositAddressCount -= 1;
-        depositUsers.remove(userString);
+        //退出抵押时返回的押金等于总抵押金额，说明该地址是是共识节点的创建者,该quit方法只退出该创建者参与抵押的金额
+        if(totalDepositAmount.compareTo(transferTotalAmount)>0){
+            // 更新退押金详情
+            detailInfo.updateDepositTotalAmount(transferTotalAmount,quitAvailableAmount,lockedAmount);
+        }else{
+            depositInfo.setDepositCount(depositInfo.getDepositCount() - 1);
+            this.totalDepositAddressCount -= 1;
+            depositUsers.remove(userString);
+            //删除挖矿信息
+            mingUsers.remove(detailInfo.getMiningAddress());
+        }
 
         depositNumbers.add(detailInfo.getDepositNumber());
         emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
