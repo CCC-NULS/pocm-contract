@@ -519,9 +519,20 @@ public class Pocm extends Ownable implements Contract {
 
     public void quitAll() {
         onlyOwnerOrOffcial();
+        boolean hasAgents = !agentDeposits.isEmpty();
+        Set<String> skippedSet = new HashSet<String>();
+        if(hasAgents) {
+            Collection<ConsensusAgentDepositInfo> agentDepositInfos = agentDeposits.values();
+            for(ConsensusAgentDepositInfo info : agentDepositInfos) {
+                skippedSet.add(info.getDepositorAddress());
+            }
+        }
         Set<String> userSet = depositUsers.keySet();
         List<String> userList = new ArrayList<String>(userSet);
         for(String user : userList) {
+            if(hasAgents && skippedSet.contains(user)) {
+                continue;
+            }
             this.quitByUser(new Address(user));
         }
     }
@@ -569,9 +580,20 @@ public class Pocm extends Ownable implements Contract {
 
     public void giveUpAll() {
         onlyOwnerOrOffcial();
+        boolean hasAgents = !agentDeposits.isEmpty();
+        Set<String> skippedSet = new HashSet<String>();
+        if(hasAgents) {
+            Collection<ConsensusAgentDepositInfo> agentDepositInfos = agentDeposits.values();
+            for(ConsensusAgentDepositInfo info : agentDepositInfos) {
+                skippedSet.add(info.getDepositorAddress());
+            }
+        }
         Set<String> userSet = depositUsers.keySet();
         List<String> userList = new ArrayList<String>(userSet);
         for(String user : userList) {
+            if(hasAgents && skippedSet.contains(user)) {
+                continue;
+            }
             this.giveUpByUser(new Address(user));
         }
     }
