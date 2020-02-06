@@ -541,21 +541,30 @@ public class Pocm extends Ownable implements Contract {
 
         List<Long> depositNumbers =new ArrayList<Long>();
 
-        BigInteger depositAvailableTotalAmount = depositInfo.getDepositAvailableTotalAmount();
-        BigInteger depositTotalAmount=depositInfo.getDepositTotalAmount();
-        DepositDetailInfo depositDetailInfo = depositInfo.getDepositDetailInfo();
-        mingUsers.remove(depositDetailInfo.getMiningAddress());
-        this.quitDepositToMap(depositDetailInfo.getAvailableAmount(), currentHeight, depositDetailInfo.getDepositHeight());
-        depositNumbers.add(depositDetailInfo.getDepositNumber());
+        DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfo();
+        //退出的总抵押金额
+        BigInteger totalDepositAmount=detailInfo.getDepositAmount();
+
+        // 参与POCM的抵押金额 ，参与POCM的抵押金额=锁定金额*9，因为availableAmount可能包含共识节点的抵押金额，所以通过锁定金额反向计算参与抵押的金额
+        BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.multiply(new BigDecimal("10")).toBigInteger());
+        //防止共识节点的创建在无抵押的情况下调用此方法：当共识节点的创建者调用此方法时，可能存在抵押记录，但是没有主动参与抵押的金额
+        require(quitAvailableAmount.compareTo(BigInteger.ZERO)>0, "此用户参与抵押的金额为零");
+
+        BigInteger lockedAmount=detailInfo.getLockedAmount();
+        //退出抵押返回的押金=参与POCM的抵押金额+锁定金额
+        BigInteger transferTotalAmount =lockedAmount.add(quitAvailableAmount);
+
+        boolean isEnoughBalance = totalDepositManager.subtract(quitAvailableAmount);
+        require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + quitAvailableAmount);
+        mingUsers.remove(detailInfo.getMiningAddress());
+        this.quitDepositToMap(quitAvailableAmount, currentHeight, detailInfo.getDepositHeight());
 
         totalDepositAddressCount -= 1;
         depositUsers.remove(userString);
 
-        boolean isEnoughBalance = totalDepositManager.subtract(depositAvailableTotalAmount);
-        require(isEnoughBalance, "余额不足以退还押金，请联系项目方，退出抵押金额：" + depositAvailableTotalAmount);
-
+        depositNumbers.add(detailInfo.getDepositNumber());
         emit(new QuitDepositEvent(depositNumbers,depositInfo.getDepositorAddress()));
-        user.transfer(depositTotalAmount);
+        user.transfer(transferTotalAmount);
     }
 
     public void giveUpAll() {
