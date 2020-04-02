@@ -35,6 +35,8 @@ import java.math.BigInteger;
  */
 public class PocmUtil {
 
+    public final static BigInteger MININUM_TRANSFER_AMOUNT = BigInteger.TEN.pow(6);
+
     public final static BigInteger ONE_NULS = BigInteger.valueOf(100000000L);
     //90%
     public final static BigDecimal AVAILABLE_PERCENT= new BigDecimal("0.9");
@@ -47,6 +49,10 @@ public class PocmUtil {
 
     public static BigInteger toNa(BigDecimal nuls) {
         return nuls.scaleByPowerOfTen(8).toBigInteger();
+    }
+
+    public static BigInteger extractDecimal(BigInteger na) {
+        return na.subtract(toNuls(na).toBigInteger().multiply(ONE_NULS));
     }
 
     public static BigInteger toMinUit(BigDecimal value,int decimals) {

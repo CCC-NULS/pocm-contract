@@ -87,4 +87,8 @@ public class TotalDepositManager {
         require(consensusManager.getAgents() == null, "请先移除共识节点hash");
         this.openConsensus = false;
     }
+
+    public void repairAmount(BigInteger value) {
+        this.totalDeposit = this.totalDeposit.add(value);
+    }
 }

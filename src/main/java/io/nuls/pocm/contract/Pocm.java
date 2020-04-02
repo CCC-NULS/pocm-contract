@@ -246,6 +246,17 @@ public class Pocm extends Ownable implements Contract {
         consensusManager.withdrawSpecifiedAmount(value);
     }
 
+    public void repairConsensus(BigInteger value) {
+        onlyOffcial();
+        require(openConsensus, "未开启共识功能");
+        consensusManager.repairAmount(value);
+    }
+
+    public void repairTotalDepositManager(BigInteger value) {
+        onlyOffcial();
+        totalDepositManager.repairAmount(value);
+    }
+
     /**
      * 添加其他节点的共识信息
      * @param agentHash 其他共识节点的hash
@@ -395,8 +406,18 @@ public class Pocm extends Ownable implements Contract {
         String userStr = Msg.sender().toString();
         DepositInfo info = depositUsers.get(userStr);
         BigInteger value = Msg.value();
+        BigInteger decimalValue = PocmUtil.extractDecimal(value);
+        boolean hasDecimal = decimalValue.compareTo(BigInteger.ZERO) > 0;
+        if(hasDecimal) {
+            // 防止退回的小数金额太小
+            if(decimalValue.compareTo(MININUM_TRANSFER_AMOUNT) < 0) {
+                decimalValue = decimalValue.add(ONE_NULS);
+            }
+            value = value.subtract(decimalValue);
+            require(decimalValue.add(value).compareTo(Msg.value()) == 0, "小数提取错误，抵押金: " + Msg.value());
+        }
         long currentHeight = Block.number();
-        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS");
+        require(value.compareTo(minimumDeposit) >= 0, "未达到最低抵押值:" + toNuls(minimumDeposit).toBigInteger()+"NULS，若抵押值有小数，请去掉小数");
         long depositNumber=0;
         if (info == null) {
             depositNumber = NUMBER++;
@@ -445,6 +466,10 @@ public class Pocm extends Ownable implements Contract {
         //初始化挖矿信息
         initMingInfo(currentHeight, userStr, userStr, depositNumber);
         totalDepositManager.add(availableDepositValue);
+        // 退还抵押金的小数位
+        if(hasDecimal) {
+            Msg.sender().transfer(decimalValue);
+        }
         emit(new DepositDetailInfoEvent(info.getDepositDetailInfo(),value));
     }
 
@@ -519,6 +544,7 @@ public class Pocm extends Ownable implements Contract {
 
     public void quitAll() {
         onlyOwnerOrOffcial();
+        require(consensusManager.getAgents() == null, "请先移除共识节点hash");
         boolean hasAgents = !agentDeposits.isEmpty();
         Set<String> skippedSet = new HashSet<String>();
         if(hasAgents) {
@@ -588,6 +614,7 @@ public class Pocm extends Ownable implements Contract {
 
     public void giveUpAll() {
         onlyOwnerOrOffcial();
+        require(consensusManager.getAgents() == null, "请先移除共识节点hash");
         boolean hasAgents = !agentDeposits.isEmpty();
         Set<String> skippedSet = new HashSet<String>();
         if(hasAgents) {

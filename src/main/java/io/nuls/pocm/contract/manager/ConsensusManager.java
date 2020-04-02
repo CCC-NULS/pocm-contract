@@ -194,6 +194,10 @@ public class ConsensusManager {
         return availableAmount;
     }
 
+    public void repairAmount(BigInteger value) {
+        this.availableAmount = this.availableAmount.add(value);
+    }
+
     public void modifyMinJoinDeposit(BigInteger value) {
         MIN_JOIN_DEPOSIT = value;
         if(enableDepositOthers) {
