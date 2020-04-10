@@ -125,8 +125,10 @@ public class DepositOthersManager {
             BigInteger totalDeposit = this.moreDeposits(agent, new BigInteger(agentInfo[4]));
             BigInteger currentAvailable = MAX_TOTAL_DEPOSIT.subtract(totalDeposit);
             if(currentAvailable.compareTo(availableAmount) >= 0) {
-                this.deposit(agentHash, availableAmount, agent);
-                actualDeposit = actualDeposit.add(availableAmount);
+                if(availableAmount.compareTo(MIN_JOIN_DEPOSIT) >= 0) {
+                    this.deposit(agentHash, availableAmount, agent);
+                    actualDeposit = actualDeposit.add(availableAmount);
+                }
                 break;
             } else if(currentAvailable.compareTo(MIN_JOIN_DEPOSIT) >= 0){
                 this.deposit(agentHash, currentAvailable, agent);
