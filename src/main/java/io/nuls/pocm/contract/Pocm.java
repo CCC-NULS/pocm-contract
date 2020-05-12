@@ -266,6 +266,10 @@ public class Pocm extends Ownable implements Contract {
         require(openConsensus, "未开启共识功能");
         String[] agentInfo = consensusManager.addOtherAgent(agentHash);
         String agentAddress = agentInfo[0];
+        Collection<ConsensusAgentDepositInfo> agentDepositInfos = agentDeposits.values();
+        for(ConsensusAgentDepositInfo agentDepositInfo : agentDepositInfos) {
+            require(!agentDepositInfo.getDepositorAddress().equals(agentAddress), "当前添加的节点的创建者地址和已添加的节点的创建者地址冲突");
+        }
         BigInteger value = new BigInteger(agentInfo[3]);
         emit(new AgentEvent(agentHash,value));
 
@@ -343,9 +347,6 @@ public class Pocm extends Ownable implements Contract {
         DepositDetailInfo detailInfo = depositInfo.getDepositDetailInfo();
         long currentHeight = Block.number();
         List<Long> depositNumbers =new ArrayList<Long>();
-
-        //退出的总抵押金额
-        BigInteger totalDepositAmount=detailInfo.getDepositAmount();
 
         // 参与POCM的抵押金额 ，参与POCM的抵押金额=锁定金额*9，因为availableAmount可能包含共识节点的抵押金额，所以通过锁定金额反向计算参与抵押的金额
         BigInteger quitAvailableAmount=detailInfo.getLockedAmount().multiply(PocmUtil.AVAILABLE_PERCENT.multiply(new BigDecimal("10")).toBigInteger());
