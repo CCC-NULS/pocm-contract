@@ -6,7 +6,7 @@
 
     <groupId>io.nuls.contract</groupId>
     <artifactId>pocmContract-v3</artifactId>
-    <version>test2</version>
+    <version>1.0.1.RELEASE</version>
 
     <dependencies>
         <dependency>

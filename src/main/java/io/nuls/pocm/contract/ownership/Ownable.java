@@ -65,14 +65,6 @@ public class Ownable {
         owner = newOwner;
     }
 
-    /**
-     * 放弃合约
-     */
-    public void renounceOwnership() {
-        onlyOwner();
-        emit(new OwnershipRenouncedEvent(owner));
-        owner = null;
-    }
 
     @Payable
     public void repairBalance() {
@@ -156,55 +148,6 @@ public class Ownable {
             return "OwnershipTransferredEvent{" +
                     "previousOwner=" + previousOwner +
                     ", newOwner=" + newOwner +
-                    '}';
-        }
-
-    }
-
-
-    /**
-     * 放弃拥有者
-     */
-    class OwnershipRenouncedEvent implements Event {
-
-        // 先前拥有者
-        private Address previousOwner;
-
-        public OwnershipRenouncedEvent(Address previousOwner) {
-            this.previousOwner = previousOwner;
-        }
-
-        public Address getPreviousOwner() {
-            return previousOwner;
-        }
-
-        public void setPreviousOwner(Address previousOwner) {
-            this.previousOwner = previousOwner;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o){
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            OwnershipRenouncedEvent that = (OwnershipRenouncedEvent) o;
-
-            return previousOwner != null ? previousOwner.equals(that.previousOwner) : that.previousOwner == null;
-        }
-
-        @Override
-        public int hashCode() {
-            return previousOwner != null ? previousOwner.hashCode() : 0;
-        }
-
-        @Override
-        public String toString() {
-            return "OwnershipRenouncedEvent{" +
-                    "previousOwner=" + previousOwner +
                     '}';
         }
 
