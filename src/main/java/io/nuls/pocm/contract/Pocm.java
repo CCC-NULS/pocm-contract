@@ -1327,18 +1327,6 @@ public class Pocm extends Ownable implements Contract {
         int startIndex = totalDepositIndex.get(startCycle - 1);
         BigDecimal sumPriceEnd = totalDepositList.get(totalDepositList.size() - 1).getRewardBase();
         BigDecimal sumPriceStart = totalDepositList.get(startIndex).getRewardBase();
-
-/*        int startIndex = totalDepositIndex.get(startCycle - 1)+1;
-        for (int i = startIndex; i < totalDepositList.size(); i++) {
-            RewardCycleInfo cycleInfoTmp = totalDepositList.get(i);
-            if(cycleInfoTmp.getAvailableDepositAmount().compareTo(BigInteger.ZERO)>0){
-                BigDecimal amount = toNuls(cycleInfoTmp.getAvailableDepositAmount());
-                //为了提高计算的精确度，保留小数点后8位
-                sumPrice= new BigDecimal(cycleInfoTmp.getCurrentPrice()).divide(amount, 8, BigDecimal.ROUND_DOWN).multiply(BigDecimal.valueOf(cycleInfoTmp.getDifferCycleValue()));
-            }
-            sumPriceForRegin = sumPriceForRegin.add(sumPrice);
-        }*/
-
         return sumPriceEnd.subtract(sumPriceStart);
     }
 
@@ -1498,12 +1486,9 @@ public class Pocm extends Ownable implements Contract {
     @View
     public String wholeConsensusInfo() {
         String totalDepositDetail = totalDepositDetail();
-        String totalDepositList = getTotalDepositList();
         final StringBuilder sb = new StringBuilder("{");
         sb.append("\"totalDepositDetail\":")
                 .append('\"').append(totalDepositDetail).append('\"');
-        sb.append(",\"totalDepositList\":")
-                .append('\"').append(totalDepositList).append('\"');
         if (openConsensus) {
             sb.append(",\"consensusManager\":")
                     .append(consensusManager == null ? "0" : consensusManager.toString());

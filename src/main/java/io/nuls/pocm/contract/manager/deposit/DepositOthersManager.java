@@ -83,12 +83,13 @@ public class DepositOthersManager {
         BigInteger withdrawAmount = BigInteger.ZERO;
         require(otherAgents.containsKey(agentHash), "节点不存在");
         Object agentInfo = Utils.invokeExternalCmd("cs_getContractAgentInfo", new String[]{agentHash});
-        require(agentInfo != null, "节点不存在");
+        boolean isEnabled;
         if (agentInfo == null ){
-            return BigInteger.ZERO;
+            isEnabled = false;
+        } else {
+            String[] agent = (String[])agentInfo;
+            isEnabled = "-1".equals(agent[8]);
         }
-        String[] agent = (String[])agentInfo;
-        boolean isEnabled = "-1".equals(agent[8]);
         //退出节点委托
         Iterator<ConsensusDepositInfo> iterator = depositList.iterator();
         while (iterator.hasNext()){
