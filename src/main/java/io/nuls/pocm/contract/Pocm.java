@@ -269,6 +269,8 @@ public class Pocm extends Ownable implements Contract {
     public void addOtherAgent(String agentHash) {
         onlyOwnerOrOffcial();
         require(openConsensus, "未开启共识功能");
+        require(isAllocationToken(), "此POCM合约未预分配Token,暂不接受添加节点");
+        require(isAcceptDeposit(), "预分配的Token数量已经奖励完毕，不再接受添加节点");
         String[] agentInfo = consensusManager.addOtherAgent(agentHash);
         String agentAddress = agentInfo[0];
         Collection<ConsensusAgentDepositInfo> agentDepositInfos = agentDeposits.values();
