@@ -24,12 +24,17 @@ public class Ownable {
 
     protected Address owner;
 
-    private static final String OFFCIAL_ADDRESS = "NULSd6HgaV1DxYLYUGSdLjBb4Xq3HDzrBnbwN";
+    protected String OFFICIAL_ADDRESS = "NULSd6HgaV1DxYLYUGSdLjBb4Xq3HDzrBnbwN";
     //private static final String OFFCIAL_ADDRESS = "tNULSeBaMuU6sq72mptyghDXDWQXKJ5QUaWhGj";
 
     public Ownable() {
         this.owner = Msg.sender();
         this.contractCreator = this.owner;
+        if (this.owner.toString().startsWith("NULS")) {
+            OFFICIAL_ADDRESS = "NULSd6HgaV1DxYLYUGSdLjBb4Xq3HDzrBnbwN";
+        } else {
+            OFFICIAL_ADDRESS = "tNULSeBaMuU6sq72mptyghDXDWQXKJ5QUaWhGj";
+        }
     }
 
     @View
@@ -47,11 +52,11 @@ public class Ownable {
     }
 
     protected void onlyOwnerOrOffcial() {
-        require(Msg.sender().equals(owner) || Msg.sender().toString().equals(OFFCIAL_ADDRESS), "Refused.");
+        require(Msg.sender().equals(owner) || Msg.sender().toString().equals(OFFICIAL_ADDRESS), "Refused.");
     }
 
     protected void onlyOffcial() {
-        require(Msg.sender().toString().equals(OFFCIAL_ADDRESS), "Refused.");
+        require(Msg.sender().toString().equals(OFFICIAL_ADDRESS), "Refused.");
     }
 
     /**
